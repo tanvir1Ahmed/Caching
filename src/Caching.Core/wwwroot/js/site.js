@@ -140,8 +140,12 @@ function redisErrorHtml(result) {
     const setOpen = open => {
         document.body.classList.toggle("menu-open", open);
         toggle.setAttribute("aria-expanded", String(open));
+        const sidebar = document.querySelector(".sidebar");
+        const active = sidebar?.querySelector(".nav-item.active");
+        if (open && active) sidebar.scrollTop = active.offsetTop - sidebar.clientHeight / 2;
     };
     toggle.addEventListener("click", () => setOpen(!document.body.classList.contains("menu-open")));
     document.querySelector(".sidebar-backdrop")?.addEventListener("click", () => setOpen(false));
+    document.querySelector(".menu-close")?.addEventListener("click", () => setOpen(false));
     document.addEventListener("keydown", e => { if (e.key === "Escape") setOpen(false); });
 })();
