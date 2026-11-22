@@ -1,0 +1,90 @@
+@{
+    ViewData["Title"] = "Penetration and Bloom filters";
+    ViewData["Lesson"] = "l7-penetration";
+}
+
+<h1>7.2 Cache penetration and Bloom filters</h1>
+<p class="lead">Requests for data that does not exist are never cached, so every one of them goes straight to the database. A buggy client or an attacker can use this to bypass your cache completely.</p>
+
+<h2>The problem</h2>
+<p>Normal cache-aside only stores what it finds. Ask for product 999999, which does not exist, and the database says "not found", nothing is cached, and the next request for 999999 hits the database again. An attacker requesting random ids can push 100% of traffic past the cache.</p>
+
+<h2>Fix 1: cache "not found"</h2>
+<p>Store a special marker (for example <code>NOT_FOUND</code>) for missing ids, with a <b>short</b> TTL so the item can appear later.</p>
+<pre><code>if (product is not null) cache.Set(key, product, TimeSpan.FromSeconds(60));
+else cache.Set(key, "NOT_FOUND", TimeSpan.FromSeconds(30));</code></pre>
+<p>This stops repeated requests for the same missing id. It does <b>not</b> help against random ids: each one is new, and the cache fills up with useless markers.</p>
+
+<h2>Fix 2: a Bloom filter in front of the cache</h2>
+<p>A <b>Bloom filter</b> is a compact bit array that answers "could this id exist?" with either <b>"definitely not"</b> or <b>"maybe"</b>. Load it with all existing ids. Requests for ids that are definitely not there are rejected before touching the cache or the database.</p>
+<ul>
+    <li><b>Adding</b> an item: compute k hash positions and set those bits to 1.</li>
+    <li><b>Checking</b> an item: if any of its k bits is 0, it was never added: <b>definitely not present</b>. If all are 1, it is <b>probably present</b> (the bits may have been set by other items: a false positive).</li>
+    <li><b>No false negatives:</b> an item that was added is always found. False positives just cost one normal lookup.</li>
+    <li><b>Tiny:</b> about 10 bits per item for a 1% false positive rate. 10 million ids fit in about 12 MB.</li>
+</ul>
+<p>This demo uses a deliberately small filter (64 bits, 3 hash functions) so you can see the bits and the false positives. In production, use RedisBloom (<code>BF.ADD</code>, <code>BF.EXISTS</code>) so every server shares one filter, and remember that a basic Bloom filter cannot remove items (counting or cuckoo filters can).</p>
+
+<h2>Live demo: the attack</h2>
+<p>Each run sends requests one after another. Missing products cost 800 ms each when they reach the database.</p>
+<div class="card">
+    <div class="toolbar">
+        <label class="field">Request pattern
+            <select id="pattern">
+                <option value="repeated">Same missing id (999999) again and again</option>
+                <option value="random">Random missing ids</option>
+                <option value="valid">Real products (1 to 10)</option>
+            </select>
+        </label>
+        <button class="btn danger" data-mode="none">Run: no protection</button>
+        <button class="btn primary" data-mode="null-cache">Run: cache "not found"</button>
+        <button class="btn primary" data-mode="bloom">Run: Bloom filter</button>
+    </div>
+    <table>
+        <thead><tr><th>Protection</th><th>Pattern</th><th>Requests</th><th>Reached database</th><th>Cache hits</th><th>Rejected by filter</th><th>Time</th></tr></thead>
+        <tbody id="results"><tr><td colspan="7" class="muted">Run a scenario (no protection takes about 8 seconds).</td></tr></tbody>
+    </table>
+</div>
+
+<h2>Live demo: inside the Bloom filter</h2>
+<div class="card">
+    <div class="toolbar">
+        <label class="field">Product id to check<input id="checkId" value="5" size="10" /></label>
+        <button class="btn primary" id="btnCheck">Check</button>
+        <button class="btn" id="btnFalsePositive">Find a false positive</button>
+    </div>
+    <div id="bloomBits" class="mono" style="word-break:break-all;line-height:1.9"></div>
+    <p id="bloomInfo" class="muted"></p>
+    <div id="bloomAnswer" class="outcome"></div>
+</div>
+
+<h2>Experiments</h2>
+<ol class="steps">
+    <li><b>Same missing id.</b> With "Same missing id", run all three. No protection: every request reaches the database. Cache "not found": only the first does. Bloom filter: none.</li>
+    <li><b>Random ids.</b> Switch to "Random missing ids". Caching "not found" no longer helps, since every id is new. The Bloom filter still rejects almost everything.</li>
+    <li><b>Real products.</b> Switch to "Real products". All three behave normally: real ids pass the filter and get cached.</li>
+    <li><b>Look at the bits.</b> Check id 5: its 3 bits are highlighted and all are 1, "probably present". Check 999999: at least one bit is 0, "definitely not present".</li>
+    <li><b>False positive.</b> Click <em>Find a false positive</em>. It searches for a missing id whose 3 bits all happen to be 1. That request would pass the filter and cost one normal miss. Harmless, but it shows why the answer is only "maybe".</li>
+</ol>
+
+<h2>What you should take away</h2>
+<div class="callout tip">
+    <strong>Key points</strong>
+    Cache penetration is traffic for missing data that bypasses the cache. Cache "not found" with a short TTL for repeated misses. Use a Bloom filter of valid ids to reject random ones cheaply. Also validate input (id ranges, formats) and rate limit (lesson 5.2).
+</div>
+<div class="callout danger">
+    <strong>Common mistakes</strong>
+    Caching "not found" for a long time, so newly created items stay invisible. Forgetting to add new ids to the Bloom filter, which turns real items into "definitely not" answers. Building a filter that is too small, so the false positive rate approaches 100%.
+</div>
+
+<h2>Read the code</h2>
+<ul class="code-ref">
+    <li><code>Caching.Business/Helper/BloomFilter.cs</code>: a complete Bloom filter in about 60 lines (bit array, double hashing, false positive estimate).</li>
+    <li><code>Caching.Business/Service/Implementation/PenetrationService.cs</code>: the three modes and the request patterns.</li>
+</ul>
+
+<div class="next-link"><a class="btn primary" href="/Level7/Avalanche">Next: Cache avalanche &rarr;</a></div>
+
+@section Scripts {
+    <script src="~/js/level7/penetration.js" asp-append-version="true"></script>
+}

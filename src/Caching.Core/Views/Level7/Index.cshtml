@@ -1,0 +1,102 @@
+@{
+    ViewData["Title"] = "Cache stampede";
+    ViewData["Lesson"] = "l7-index";
+}
+
+<h1>7.1 Cache stampede (thundering herd)</h1>
+<p class="lead">When a popular entry is missing, every request that arrives before it is reloaded goes to the database at the same time. Under heavy traffic that burst can take the database down.</p>
+
+<h2>How it happens</h2>
+<p>A product page gets 500 requests per second and the cached product expires. Loading it takes 800 ms. During those 800 ms, about 400 requests find the cache empty, and <b>each one</b> starts its own database query for the same row. The database suddenly receives 400 identical queries, slows down, loading takes even longer, and more requests pile up.</p>
+<div class="flow">
+    <div class="flow-step"><b>Popular key expires</b></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step miss"><b>Hundreds of misses</b><small>in the same moment</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step miss"><b>Hundreds of identical queries</b></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><b>Database overload</b></div>
+</div>
+
+<h2>Fixes</h2>
+<div class="card">
+    <table>
+        <thead><tr><th>Fix</th><th>How</th></tr></thead>
+        <tbody>
+            <tr><td><b>Single flight (lock per key)</b></td><td>Only the first request loads, the others wait for its result. Inside one server: a <code>SemaphoreSlim</code> per key, with a second cache check after getting the lock.</td></tr>
+            <tr><td><b>Built-in protection</b></td><td>HybridCache (lesson 4.4) and output caching (lesson 2.4) already do single flight for you.</td></tr>
+            <tr><td><b>Across servers</b></td><td>A distributed lock (lesson 5.3) so only one server rebuilds the entry, while the others briefly serve stale data or wait.</td></tr>
+            <tr><td><b>Never let hot keys expire</b></td><td>Refresh-ahead (lesson 3.4), or serve the stale value while one background task refreshes it.</td></tr>
+            <tr><td><b>Probabilistic early expiration</b></td><td>Each request refreshes early with a small probability that grows as expiry approaches (the "XFetch" algorithm), so refreshes are spread out and rarely overlap.</td></tr>
+        </tbody>
+    </table>
+</div>
+<p>The single-flight version in this project:</p>
+<pre><code>if (cache.TryGetValue(key, out ProductDto? cached)) return cached;
+
+var gate = locks.GetOrAdd(key, _ =&gt; new SemaphoreSlim(1, 1));
+await gate.WaitAsync();
+try
+{
+    if (cache.TryGetValue(key, out cached)) return cached;
+    var product = await load();
+    cache.Set(key, product, Duration);
+    return product;
+}
+finally
+{
+    gate.Release();
+}</code></pre>
+<p>The second <code>TryGetValue</code> inside the lock is essential: the requests that waited find the value the first request stored, instead of loading it again.</p>
+
+<h2>Live demo</h2>
+<p>Each run empties the cache and sends N requests for the same product <b>at the same moment</b>. Count how many reach the database.</p>
+<div class="card">
+    <div class="toolbar">
+        <label class="field">Concurrent requests
+            <select id="requests">
+                <option>10</option>
+                <option selected>20</option>
+                <option>50</option>
+                <option>100</option>
+            </select>
+        </label>
+        <button class="btn danger" data-mode="none">Run without protection</button>
+        <button class="btn primary" data-mode="lock">Run with a lock per key</button>
+        <button class="btn primary" data-mode="hybrid">Run with HybridCache</button>
+    </div>
+</div>
+<div class="card">
+    <table>
+        <thead><tr><th>Protection</th><th>Requests</th><th>Database queries</th><th>Cache hits</th><th>Total time</th></tr></thead>
+        <tbody id="results"><tr><td colspan="5" class="muted">Run a scenario.</td></tr></tbody>
+    </table>
+</div>
+
+<h2>Experiments</h2>
+<ol class="steps">
+    <li><b>No protection.</b> Run with 20 requests: 20 database queries for the same row. Try 100.</li>
+    <li><b>Lock per key.</b> Run with the lock: 1 query, the other 19 are hits. The total time is the same (about 800 ms), so nobody waited longer than the one load.</li>
+    <li><b>HybridCache.</b> Same result with no locking code at all.</li>
+</ol>
+
+<h2>What you should take away</h2>
+<div class="callout tip">
+    <strong>Key points</strong>
+    A stampede is many simultaneous misses for the same key. Make sure only one caller rebuilds an entry (single flight), use libraries that do it for you, and keep hot keys from expiring under load with refresh-ahead or early refresh.
+</div>
+<div class="callout danger">
+    <strong>Common mistakes</strong>
+    One global lock for all keys, which serializes every miss in the app. Forgetting the second cache check inside the lock. Locks that are never removed for millions of keys (clean them up or use a fixed pool of striped locks).
+</div>
+
+<h2>Read the code</h2>
+<ul class="code-ref">
+    <li><code>Caching.Business/Service/Implementation/StampedeService.cs</code>: the three modes side by side.</li>
+</ul>
+
+<div class="next-link"><a class="btn primary" href="/Level7/Penetration">Next: Penetration and Bloom filters &rarr;</a></div>
+
+@section Scripts {
+    <script src="~/js/level7/stampede.js" asp-append-version="true"></script>
+}

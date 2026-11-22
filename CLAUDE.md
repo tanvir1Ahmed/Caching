@@ -5,7 +5,7 @@ Read and follow these rules before making any change in this repository.
 ## Purpose
 This repository is a **caching course**. The user is learning caching from beginner to advanced, with Claude as the teacher.
 - Each topic gets real backend code (the user learns from the code) and a portal page that explains how it works and lets the user run a live demo.
-- The course is built **one level at a time**. Do not start the next level until the user asks for it.
+- All seven levels are complete. For changes, keep each lesson self-contained and follow the lesson page format below.
 
 ## Course progress
 | Level | Topic | Status |
@@ -16,7 +16,7 @@ This repository is a **caching course**. The user is learning caching from begin
 | 4 | Distributed caching: IDistributedCache (Redis, SQL), HybridCache, serialization | Done |
 | 5 | Redis in depth: data types, Pub/Sub, distributed locks, rate limiting, eviction policies, persistence, replication, cluster | Done |
 | 6 | Invalidation and consistency: time, event, tag and version based invalidation, stale data | Done |
-| 7 | Advanced: stampede, penetration, avalanche, hot keys, multi-level cache, Bloom filter, monitoring, Memcached, NCache, EF Core second-level cache | Next |
+| 7 | Advanced: stampede, penetration, avalanche, hot keys, multi-level cache, Bloom filter, monitoring, Memcached, NCache, EF Core second-level cache | Done |
 
 Update this table when a level is finished.
 
@@ -49,6 +49,7 @@ src/
     Program.cs
   Caching.Business/                 Class library - all business logic
     Constant/                       cache keys (CacheKeys) and enums
+    Helper/                         small reusable data structures (BloomFilter)
     Service/
       Interface/
       Implementation/
@@ -77,6 +78,9 @@ src/
 - HTTP-level caching is configured in `Program.cs` because it belongs to the HTTP pipeline: `AddResponseCaching`/`UseResponseCaching`, `AddOutputCache` (policy `Products`, tag `products`)/`UseOutputCache` after `UseRouting`, and `UseStaticFiles` with `OnPrepareResponse` (versioned `?v=` files get `immutable`, others `no-cache`).
 - The response caching middleware stores every `public` response app-wide. Endpoints whose demos must reach the controller or show browser-only caching use `private`.
 - Level 3 strategies live in separate Business services (`CacheAsideService`, generic `ReadThroughCache<T>` with a loader set in DI, `WriteStrategyService`, `WriteBehindService` + `WriteBehindWorker` hosted service, `RefreshAheadService`). Singleton services that need the repository create a scope with `IServiceScopeFactory`.
+- Level 7: `StampedeService`, `PenetrationService` (uses `Helper/BloomFilter`), `AvalancheService`, `MultiLevelCacheService` (L1 memory, L2 Redis via `IRedisRepository`, cross-server L1 invalidation over Pub/Sub channel `level7:invalidate`), `MetricsService`.
+- `CacheEventLog` publishes the `System.Diagnostics.Metrics` meter `Caching.Academy` (counter `caching_academy.cache_events`, tags `type` and `level`) and keeps totals for the 7.5 dashboard.
+- Most demo services are singletons with their own `MemoryCache` instance so lessons do not affect each other; the shared `IMemoryCache` is used by Levels 1 and 3 and by HybridCache's L1.
 - Level 2 demos detect cache hits with `IRequestCounter` (`api/level2/counters`): the counter only increases when the controller action really runs.
 
 ## Portal lesson page format

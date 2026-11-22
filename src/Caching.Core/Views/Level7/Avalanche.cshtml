@@ -1,0 +1,88 @@
+@{
+    ViewData["Title"] = "Cache avalanche";
+    ViewData["Lesson"] = "l7-avalanche";
+}
+
+<h1>7.3 Cache avalanche</h1>
+<p class="lead">A stampede is many requests for <b>one</b> key. An avalanche is <b>many keys</b> missing at the same time, so a large part of all traffic suddenly falls through to the database.</p>
+
+<h2>Two common causes</h2>
+<div class="grid grid-2">
+    <div class="card">
+        <b>Synchronized expiry</b>
+        <p class="muted">A job warms 10,000 entries at 09:00 with a 1-hour TTL. At 10:00 all 10,000 expire in the same second, and the next requests all miss together.</p>
+    </div>
+    <div class="card">
+        <b>Cache outage or restart</b>
+        <p class="muted">The Redis server restarts, fails over, or a deploy clears every in-memory cache. Everything is cold at once.</p>
+    </div>
+</div>
+
+<h2>Fixes</h2>
+<div class="card">
+    <table>
+        <thead><tr><th>Fix</th><th>How</th></tr></thead>
+        <tbody>
+            <tr><td><b>TTL jitter</b></td><td>Add a random amount to each TTL (for example 1 hour &plusmn; 10%) so expiries spread out over time.</td></tr>
+            <tr><td><b>Gradual warm-up</b></td><td>After a restart, warm the most important keys first and gradually, instead of letting live traffic do it all at once.</td></tr>
+            <tr><td><b>Multi-level caching</b></td><td>An L1 in each server (lesson 7.4) absorbs traffic while L2 refills.</td></tr>
+            <tr><td><b>Highly available cache</b></td><td>Replicas and failover (lesson 5.4), so one node's failure does not empty the cache.</td></tr>
+            <tr><td><b>Protect the database</b></td><td>Single flight per key (7.1), a limit on concurrent database loads, and a circuit breaker that serves stale data or a friendly error instead of overloading the database.</td></tr>
+        </tbody>
+    </table>
+</div>
+<p>Jitter is one line of code:</p>
+<pre><code>var spread = (Random.Shared.NextDouble() * 2 - 1) * ttlSeconds * jitterPercent / 100.0;
+cache.Set(key, value, TimeSpan.FromSeconds(ttlSeconds + spread));</code></pre>
+
+<h2>Live demo</h2>
+<p>The button caches 200 entries twice: once with a fixed 20-second TTL, once with 20 seconds &plusmn; 50%. The charts show how many entries expire in each second. Then watch the live counters as entries really expire.</p>
+<div class="card">
+    <div class="toolbar">
+        <button class="btn primary" id="btnWarm">Cache 200 entries both ways</button>
+        <span id="elapsed" class="muted"></span>
+    </div>
+    <div class="grid grid-2">
+        <div>
+            <b>Fixed TTL (20 s)</b>
+            <div id="chart-fixed" style="display:flex;align-items:flex-end;gap:2px;height:140px;border-bottom:1px solid var(--border)"></div>
+            <p class="muted" id="peak-fixed"></p>
+            <div class="stat"><div class="value" id="alive-fixed">-</div><div class="label">entries still cached</div></div>
+        </div>
+        <div>
+            <b>With jitter (20 s &plusmn; 50%)</b>
+            <div id="chart-jitter" style="display:flex;align-items:flex-end;gap:2px;height:140px;border-bottom:1px solid var(--border)"></div>
+            <p class="muted" id="peak-jitter"></p>
+            <div class="stat"><div class="value" id="alive-jitter">-</div><div class="label">entries still cached</div></div>
+        </div>
+    </div>
+    <p class="muted">The x-axis runs from 0 to 30 seconds after caching. Bar height: entries expiring in that second, so database loads in that second if all of them are requested again.</p>
+</div>
+
+<h2>Experiments</h2>
+<ol class="steps">
+    <li><b>The cliff.</b> Click the button. The fixed chart has one bar: all 200 entries expire in second 20. The jitter chart spreads them from second 10 to 30, with a peak of only about 10 per second.</li>
+    <li><b>Watch it happen.</b> Keep watching the counters. At about 20 seconds the fixed counter drops from 200 to 0 at once. The jittered one drains gradually from second 10 to 30.</li>
+    <li><b>Think in database load.</b> If each expired entry is requested once right after expiring, fixed TTL sends 200 queries in one second; jitter sends about 10 per second for 20 seconds. Same total work, but a database can handle the second shape.</li>
+</ol>
+
+<h2>What you should take away</h2>
+<div class="callout tip">
+    <strong>Key points</strong>
+    Avoid synchronized expiry by adding jitter to TTLs, especially for entries cached in bulk. Plan for a cold cache: warm up gradually, keep an L1, run the cache with replicas, and protect the database with single flight, concurrency limits and circuit breakers.
+</div>
+<div class="callout danger">
+    <strong>Common mistakes</strong>
+    Bulk-loading thousands of keys with the same TTL at startup or from a nightly job. Assuming the cache is always warm when sizing the database. Restarting all cache nodes or all app servers at the same time.
+</div>
+
+<h2>Read the code</h2>
+<ul class="code-ref">
+    <li><code>Caching.Business/Service/Implementation/AvalancheService.cs</code>: fixed and jittered TTLs and the per-second histogram.</li>
+</ul>
+
+<div class="next-link"><a class="btn primary" href="/Level7/MultiLevel">Next: Hot keys and multi-level caching &rarr;</a></div>
+
+@section Scripts {
+    <script src="~/js/level7/avalanche.js" asp-append-version="true"></script>
+}

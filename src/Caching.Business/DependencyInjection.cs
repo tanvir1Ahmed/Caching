@@ -69,6 +69,14 @@ public static class DependencyInjection
         services.AddSingleton<IInvalidationService, InvalidationService>();
         services.AddSingleton<IConsistencyService, ConsistencyService>();
 
+        services.AddSingleton<IStampedeService, StampedeService>();
+        services.AddSingleton<IPenetrationService, PenetrationService>();
+        services.AddSingleton<IAvalancheService, AvalancheService>();
+        services.AddSingleton<MultiLevelCacheService>();
+        services.AddSingleton<IMultiLevelCacheService>(provider => provider.GetRequiredService<MultiLevelCacheService>());
+        services.AddSingleton<IRedisSubscriber>(provider => provider.GetRequiredService<MultiLevelCacheService>());
+        services.AddScoped<IMetricsService, MetricsService>();
+
         return services;
     }
 

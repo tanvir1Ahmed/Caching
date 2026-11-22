@@ -50,7 +50,12 @@
             <div class="nav-group">Level 6: Invalidation</div>
             <a class="nav-item @(lesson == "l6-index" ? "active" : "")" href="/Level6">6.1 Invalidation strategies</a>
             <a class="nav-item @(lesson == "l6-consistency" ? "active" : "")" href="/Level6/Consistency">6.2 Race conditions and consistency</a>
-            <div class="nav-group muted">Level 7: Advanced problems</div>
+            <div class="nav-group">Level 7: Advanced problems</div>
+            <a class="nav-item @(lesson == "l7-index" ? "active" : "")" href="/Level7">7.1 Cache stampede</a>
+            <a class="nav-item @(lesson == "l7-penetration" ? "active" : "")" href="/Level7/Penetration">7.2 Penetration and Bloom filters</a>
+            <a class="nav-item @(lesson == "l7-avalanche" ? "active" : "")" href="/Level7/Avalanche">7.3 Cache avalanche</a>
+            <a class="nav-item @(lesson == "l7-multilevel" ? "active" : "")" href="/Level7/MultiLevel">7.4 Hot keys and multi-level caching</a>
+            <a class="nav-item @(lesson == "l7-monitoring" ? "active" : "")" href="/Level7/Monitoring">7.5 Monitoring and other technologies</a>
         </aside>
         <main class="content">
             @RenderBody()

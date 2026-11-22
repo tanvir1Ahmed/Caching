@@ -1,0 +1,114 @@
+@{
+    ViewData["Title"] = "Monitoring and other technologies";
+    ViewData["Lesson"] = "l7-monitoring";
+}
+
+<h1>7.5 Monitoring caches and choosing technologies</h1>
+<p class="lead">A cache you cannot measure is a cache you cannot trust. This last lesson covers what to monitor, shows a live dashboard of this app, compares other caching technologies, and ends with a summary of the whole course.</p>
+
+<h2>What to measure</h2>
+<div class="card">
+    <table>
+        <thead><tr><th>Metric</th><th>Why</th><th>Warning sign</th></tr></thead>
+        <tbody>
+            <tr><td><b>Hit ratio</b> (per cache, per key group)</td><td>The main measure of usefulness (lesson 1.1)</td><td>Dropping after a deploy: key or TTL bug</td></tr>
+            <tr><td><b>Latency</b> of hits, misses and the source (p50, p99)</td><td>Shows whether the cache really saves time</td><td>Redis p99 rising: overload, big keys, network</td></tr>
+            <tr><td><b>Evictions</b></td><td>Entries removed for space (lessons 1.4, 5.4)</td><td>Constant evictions: cache too small</td></tr>
+            <tr><td><b>Memory and key count</b></td><td>Capacity planning</td><td>Steady growth: keys without TTL</td></tr>
+            <tr><td><b>Errors and timeouts</b></td><td>The cache is a dependency that can fail (lesson 4.2)</td><td>Any increase, since it means fallbacks to the database</td></tr>
+            <tr><td><b>Database load</b></td><td>The cache's real job is protecting it</td><td>Spikes in step with expiries: avalanche or stampede (7.1, 7.3)</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<h2>How to collect it in .NET</h2>
+<ul>
+    <li><b>IMemoryCache:</b> <code>TrackStatistics = true</code> and <code>GetCurrentStatistics()</code> (used since lesson 1.2). .NET also publishes them as metrics.</li>
+    <li><b>Your own metrics:</b> <code>System.Diagnostics.Metrics</code>. This app has a meter named <code>Caching.Academy</code> with a counter <code>caching_academy.cache_events</code>, tagged by event type and level. Every event in every log on this site increments it.</li>
+    <li><b>Watch it live:</b> <code>dotnet-counters monitor -n Caching.Core --counters Caching.Academy</code>, or export with OpenTelemetry to Prometheus/Grafana, Azure Monitor or any other backend.</li>
+    <li><b>Redis:</b> <code>INFO</code> (hits, misses, memory, evictions, lesson 5.4), <code>SLOWLOG</code>, <code>LATENCY</code>, and your provider's dashboards.</li>
+</ul>
+<pre><code>private static readonly Meter Meter = new("Caching.Academy");
+private static readonly Counter&lt;long&gt; EventCounter =
+    Meter.CreateCounter&lt;long&gt;("caching_academy.cache_events");
+
+EventCounter.Add(1, new("type", type), new("level", level));</code></pre>
+
+<h2>Live dashboard</h2>
+<div class="toolbar">
+    <button class="btn primary" id="btnRefresh">Refresh</button>
+    <label class="check"><input type="checkbox" id="auto" checked /> Refresh every 3 seconds</label>
+</div>
+<div class="grid grid-3">
+    <div class="card stat"><div class="value" id="memRatio">-</div><div class="label">Shared IMemoryCache hit ratio</div></div>
+    <div class="card stat"><div class="value" id="memEntries">-</div><div class="label">Shared IMemoryCache entries</div></div>
+    <div class="card stat"><div class="value" id="redisRatio">-</div><div class="label">Redis server hit ratio</div></div>
+</div>
+<div class="grid grid-2">
+    <div class="card">
+        <b>Events by type</b> <span class="muted">(since the app started)</span>
+        <table><tbody id="byType"></tbody></table>
+    </div>
+    <div class="card">
+        <b>Events by level</b>
+        <table><tbody id="byLevel"></tbody></table>
+        <p class="muted" id="redisDetails"></p>
+    </div>
+</div>
+<p class="muted">Use demos on other pages and come back: the numbers grow. Note how Hit and Miss events relate to the hit ratios.</p>
+
+<h2>Other caching technologies</h2>
+<div class="card">
+    <table>
+        <thead><tr><th>Technology</th><th>What it is</th><th>When to consider it</th></tr></thead>
+        <tbody>
+            <tr><td><b>Memcached</b></td><td>The original distributed memory cache: simple strings with TTL, multi-threaded, no persistence, no data structures. Scales by sharding on the client side.</td><td>Very simple, very large key-value caching. Most teams now choose Redis for its features.</td></tr>
+            <tr><td><b>Redis / Valkey</b></td><td>Data structure server (Level 5). Valkey is the open-source fork maintained by the Linux Foundation.</td><td>The default choice for distributed caching.</td></tr>
+            <tr><td><b>Garnet</b></td><td>Microsoft Research's Redis-compatible cache server, written in C#.</td><td>High throughput on .NET infrastructure. Works with StackExchange.Redis.</td></tr>
+            <tr><td><b>Dragonfly, KeyDB</b></td><td>Multi-threaded Redis-compatible servers.</td><td>Very high load on a single machine.</td></tr>
+            <tr><td><b>NCache</b></td><td>A .NET-native distributed cache with read-through/write-through providers, SQL dependency invalidation and an <code>IDistributedCache</code> implementation.</td><td>.NET shops wanting cache-side loaders and Windows-friendly operations.</td></tr>
+            <tr><td><b>Hazelcast, Apache Ignite</b></td><td>In-memory data grids: distributed caches with compute, queries and near caches.</td><td>Large clusters needing more than key-value caching, often in Java-heavy environments.</td></tr>
+            <tr><td><b>EF Core second-level cache</b></td><td>Libraries such as <code>EFCoreSecondLevelCacheInterceptor</code> cache query results by intercepting EF Core commands and invalidate them when the involved tables change.</td><td>Many repeated read queries in an EF Core app, with little code change. Less control than explicit caching.</td></tr>
+            <tr><td><b>CDN, Varnish, Nginx</b></td><td>HTTP caches in front of your app (Level 2).</td><td>Public, anonymous, cacheable HTTP responses and static files.</td></tr>
+            <tr><td><b>Database-side</b></td><td>Buffer pools, materialized views, read replicas.</td><td>Sometimes the right answer is a faster query or a precomputed table, not a cache.</td></tr>
+        </tbody>
+    </table>
+</div>
+<p>An example of the EF Core second-level cache, to compare with the explicit caching you wrote in this course:</p>
+<pre><code>services.AddEFSecondLevelCache(options =&gt;
+    options.UseMemoryCacheProvider().CacheAllQueries(CacheExpirationMode.Absolute, TimeSpan.FromMinutes(5)));
+
+var products = await context.Products.Where(p =&gt; p.Price &gt; 100).Cacheable().ToListAsync();</code></pre>
+
+<h2>The whole course on one card</h2>
+<div class="card">
+    <table>
+        <thead><tr><th>Level</th><th>Remember</th></tr></thead>
+        <tbody>
+            <tr><td><b>1. Fundamentals</b></td><td>A cache is a copy. Hit ratio decides everything. Always set expiration and size limits.</td></tr>
+            <tr><td><b>2. HTTP</b></td><td><code>Cache-Control</code> for browsers and CDNs, ETags for cheap revalidation, output caching for server-side responses, versioned URLs for static files.</td></tr>
+            <tr><td><b>3. Strategies</b></td><td>Cache-aside + delete on write is the default. Read-through, write-through, write-behind and refresh-ahead each solve a specific problem.</td></tr>
+            <tr><td><b>4. Distributed</b></td><td>Several servers need a shared cache. Serialize compactly, fail open, and use HybridCache for L1 + L2.</td></tr>
+            <tr><td><b>5. Redis</b></td><td>Use the right data type. Atomic commands solve counters, rate limits and leaderboards. Pub/Sub broadcasts, locks need tokens and safe expiry.</td></tr>
+            <tr><td><b>6. Invalidation</b></td><td>TTL as a safety net, explicit invalidation for freshness, versioning or checks to beat races. Caches are eventually consistent.</td></tr>
+            <tr><td><b>7. At scale</b></td><td>Single flight against stampedes, null caching and Bloom filters against penetration, jitter against avalanches, L1 against hot keys, and metrics for everything.</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="callout tip">
+    <strong>Course complete</strong>
+    You have gone from "what is a cache?" to the problems large systems solve every day. Revisit any lesson, read its code, and change the numbers (TTLs, sizes, delays) in the services to see how behavior changes. That is the best way to make it stick.
+</div>
+
+<h2>Read the code</h2>
+<ul class="code-ref">
+    <li><code>Caching.Business/Service/Implementation/CacheEventLog.cs</code>: the <code>Meter</code> and counter, plus totals for this dashboard.</li>
+    <li><code>Caching.Business/Service/Implementation/MetricsService.cs</code>: combines IMemoryCache statistics, event totals and Redis <code>INFO</code>.</li>
+</ul>
+
+<div class="next-link"><a class="btn primary" href="/">Back to the course map</a></div>
+
+@section Scripts {
+    <script src="~/js/level7/monitoring.js" asp-append-version="true"></script>
+}

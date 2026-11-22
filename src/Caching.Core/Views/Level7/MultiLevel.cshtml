@@ -1,0 +1,100 @@
+@{
+    ViewData["Title"] = "Hot keys and multi-level caching";
+    ViewData["Lesson"] = "l7-multilevel";
+}
+
+<h1>7.4 Hot keys and multi-level caching</h1>
+<p class="lead">A few keys often get a huge share of all traffic. A local L1 cache in every server in front of Redis absorbs that load, and Redis Pub/Sub keeps the L1 copies correct.</p>
+
+<h2>The hot key problem</h2>
+<p>A flash sale product, the home page configuration, a celebrity's profile: one key read 50,000 times per second. In a Redis cluster, a key lives on exactly one node, so that node gets all the load and its network or CPU becomes the bottleneck, while other nodes sit idle. Even on one Redis, 50,000 network round trips per second cost a lot.</p>
+<div class="card">
+    <table>
+        <thead><tr><th>Fix</th><th>How</th></tr></thead>
+        <tbody>
+            <tr><td><b>Local L1 cache</b></td><td>Each app server keeps hot values in its own memory for a few seconds. Redis sees one request per server per few seconds instead of every request.</td></tr>
+            <tr><td><b>Key replication</b></td><td>Store copies under <code>key:1</code> ... <code>key:N</code> (on different cluster nodes) and read a random copy. Writes must update all copies.</td></tr>
+            <tr><td><b>Read replicas</b></td><td>Spread reads of the hot node across its replicas.</td></tr>
+            <tr><td><b>Find them first</b></td><td><code>redis-cli --hotkeys</code> (with an LFU policy), monitoring per key, or sampling in your app.</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<h2>A multi-level cache</h2>
+<div class="flow">
+    <div class="flow-step hit"><b>L1: this server's memory</b><small>30 s, microseconds</small></div>
+    <div class="flow-arrow">&rarr; miss &rarr;</div>
+    <div class="flow-step"><b>L2: Redis</b><small>120 s, ~1 ms, shared</small></div>
+    <div class="flow-arrow">&rarr; miss &rarr;</div>
+    <div class="flow-step miss"><b>Database</b><small>800 ms</small></div>
+</div>
+<p>The hard part is invalidation: when a price changes, <b>every server's</b> L1 must drop its copy, not only the server that handled the write. The solution is the Pub/Sub broadcast from lesson 5.3:</p>
+<div class="flow">
+    <div class="flow-step"><b>1. Update database</b></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><b>2. Delete L2 key</b></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><b>3. PUBLISH "3"</b><small>on <code>level7:invalidate</code></small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step hit"><b>4. Every server</b><small>receives it and removes product 3 from L1</small></div>
+</div>
+<p>In this project the writing server does not even remove its own L1 entry directly: it receives its own broadcast like everyone else. If Redis is down, it falls back to removing only its local copy, and other servers stay stale until their short L1 TTL ends. That is why L1 TTLs are kept short. HybridCache (lesson 4.4) gives you L1 + L2, but leaves this cross-server L1 invalidation to you.</p>
+
+<h2>Live demo</h2>
+<div id="redisStatus"></div>
+<div class="card">
+    <div class="toolbar">
+        <label class="field">Product
+            <select id="productId"></select>
+        </label>
+        <button class="btn primary" id="btnGet">Get</button>
+        <button class="btn" id="btnClearL1">Clear L1 (like a new server)</button>
+        <button class="btn" id="btnUpdate">Update price</button>
+        <button class="btn" id="btnHammer">Read the hot key 1,000 times</button>
+    </div>
+    <div class="result-box" id="result">-</div>
+    <div class="grid grid-3" id="hammerStats" style="display:none">
+        <div class="card stat"><div class="value" id="l1">0</div><div class="label">L1 hits</div></div>
+        <div class="card stat"><div class="value" id="l2">0</div><div class="label">L2 (Redis) hits</div></div>
+        <div class="card stat"><div class="value" id="db">0</div><div class="label">Database reads</div></div>
+    </div>
+</div>
+<div class="card">
+    <b>Event log</b>
+    <div class="events">
+        <table>
+            <thead><tr><th>Time</th><th>Event</th><th>Key</th><th>Detail</th></tr></thead>
+            <tbody id="events"></tbody>
+        </table>
+    </div>
+</div>
+
+<h2>Experiments</h2>
+<ol class="steps">
+    <li><b>Three levels.</b> Click <em>Get</em> twice: database, then L1 in microseconds.</li>
+    <li><b>A new server.</b> Click <em>Clear L1</em>, then <em>Get</em>: an L2 hit from Redis, copied into L1. A freshly started server never hits the database for data another server already loaded.</li>
+    <li><b>Invalidation broadcast.</b> Click <em>Update price</em>. The log shows "Published", immediately followed by "Received ... removed from this server's L1". With 10 servers, all 10 would log that. <em>Get</em> now loads the new price.</li>
+    <li><b>Hot key.</b> Click <em>Read the hot key 1,000 times</em>. Almost all reads are L1 hits and the whole loop takes about a millisecond. Without L1, that would be 1,000 Redis round trips.</li>
+</ol>
+
+<h2>What you should take away</h2>
+<div class="callout tip">
+    <strong>Key points</strong>
+    Hot keys concentrate load on one cache node. A short-lived L1 in every server in front of a shared L2 removes most of that load and most network round trips. Keep L1 consistent by broadcasting invalidations through Redis Pub/Sub, and keep L1 TTLs short as a safety net.
+</div>
+<div class="callout danger">
+    <strong>Common mistakes</strong>
+    Long L1 TTLs without cross-server invalidation, so servers disagree for minutes. Relying only on Pub/Sub (messages are lost while a server is disconnected). Putting large, rarely used data in L1 and wasting every server's memory.
+</div>
+
+<h2>Read the code</h2>
+<ul class="code-ref">
+    <li><code>Caching.Business/Service/Implementation/MultiLevelCacheService.cs</code>: L1 &rarr; L2 &rarr; database, the Pub/Sub subscription and the fallback when Redis is down.</li>
+    <li><code>Caching.Business/Service/Implementation/RedisSubscriberWorker.cs</code>: starts the subscription when the app starts.</li>
+</ul>
+
+<div class="next-link"><a class="btn primary" href="/Level7/Monitoring">Next: Monitoring and other technologies &rarr;</a></div>
+
+@section Scripts {
+    <script src="~/js/level7/multi-level.js" asp-append-version="true"></script>
+}

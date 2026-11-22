@@ -1,94 +1,57 @@
 @{
     ViewData["Title"] = "Course map";
     ViewData["Lesson"] = "home";
-    var redisConfigured = (bool)ViewBag.RedisConfigured;
+    var levels = new[]
+    {
+        ("Level 1: Fundamentals", "/Level1", new[] { ("1.1 What is caching?", "/Level1"), ("1.2 Your first cache (IMemoryCache, cache-aside)", "/Level1/FirstCache"), ("1.3 Expiration", "/Level1/Expiration"), ("1.4 Size limits and eviction", "/Level1/Eviction") }),
+        ("Level 2: HTTP caching", "/Level2", new[] { ("2.1 Cache-Control headers", "/Level2"), ("2.2 ETag and 304", "/Level2/Validation"), ("2.3 Response caching", "/Level2/ResponseCaching"), ("2.4 Output caching", "/Level2/OutputCaching"), ("2.5 CDNs and static files", "/Level2/Cdn") }),
+        ("Level 3: Caching strategies", "/Level3", new[] { ("3.1 Cache-aside and read-through", "/Level3"), ("3.2 Write-through and write-around", "/Level3/WriteStrategies"), ("3.3 Write-behind", "/Level3/WriteBehind"), ("3.4 Refresh-ahead", "/Level3/RefreshAhead") }),
+        ("Level 4: Distributed caching", "/Level4", new[] { ("4.1 Why distributed?", "/Level4"), ("4.2 IDistributedCache and Redis", "/Level4/DistributedCache"), ("4.3 Serialization", "/Level4/Serialization"), ("4.4 HybridCache", "/Level4/HybridCache") }),
+        ("Level 5: Redis in depth", "/Level5", new[] { ("5.1 Redis data types", "/Level5"), ("5.2 Leaderboard and rate limiting", "/Level5/UseCases"), ("5.3 Pub/Sub and distributed locks", "/Level5/PubSubLocks"), ("5.4 Running Redis", "/Level5/Operations") }),
+        ("Level 6: Invalidation and consistency", "/Level6", new[] { ("6.1 Invalidation strategies", "/Level6"), ("6.2 Race conditions and consistency", "/Level6/Consistency") }),
+        ("Level 7: Advanced problems", "/Level7", new[] { ("7.1 Cache stampede", "/Level7"), ("7.2 Penetration and Bloom filters", "/Level7/Penetration"), ("7.3 Cache avalanche", "/Level7/Avalanche"), ("7.4 Hot keys and multi-level caching", "/Level7/MultiLevel"), ("7.5 Monitoring and other technologies", "/Level7/Monitoring") })
+    };
 }
 
 <h1>Caching from beginner to advanced</h1>
-<p class="lead">Every lesson has three parts: the idea explained in plain words, a live demo that calls the real API, and a list of the source files you should read next.</p>
+<p class="lead">Every lesson has three parts: the idea explained in plain words, a live demo that calls the real API, and a list of the source files to read next.</p>
 
 <div class="callout">
     <strong>How to study with this portal</strong>
-    Read the explanation, then run the experiments in order and watch the numbers and the event log. After that, open the files listed under <em>Read the code</em> and follow the request from the API controller in <code>Caching.Core</code> to the service in <code>Caching.Business</code> and the repository in <code>Caching.Infrastructure</code>. Every endpoint is also available in <a href="/swagger" target="_blank">Swagger</a>.
+    Go through the levels in order. On each page, read the explanation, run the numbered experiments and watch the numbers and the event log. Then open the files under <em>Read the code</em> and follow the request from the API controller in <code>Caching.Core</code> to the service in <code>Caching.Business</code> and the repository in <code>Caching.Infrastructure</code>. Every endpoint is also in <a href="/swagger" target="_blank">Swagger</a>.
 </div>
 
 <h2>Environment</h2>
 <div class="grid grid-2">
     <div class="card">
         <b>SQLite database</b> <span class="badge hit">Ready</span>
-        <p class="muted">Created automatically from EF Core migrations when the app starts, and filled with 10 sample products. Every database read waits <code>Database:SimulatedDelayMs</code> (800 ms) on purpose, so it behaves like a slow, real database and the benefit of caching is easy to see.</p>
+        <p class="muted">Created from EF Core migrations when the app starts, with 10 sample products. Every database read and price update waits <code>Database:SimulatedDelayMs</code> (800 ms) on purpose, so it behaves like a slow, real database and the effect of caching is easy to see.</p>
     </div>
     <div class="card">
         <b>Redis</b>
-        @if (redisConfigured)
-        {
-            <span class="badge hit">Configured</span>
-            <p class="muted">A Redis connection string was found. It will be used from Level 4.</p>
-        }
-        else
-        {
-            <span class="badge miss">Not configured</span>
-            <p class="muted">Not needed until Level 4. When you have a free Redis connection string, store it as a user secret so it is never committed:</p>
-            <p><code>cd src/Caching.Core</code><br /><code>dotnet user-secrets set "ConnectionStrings:Redis" "host:port,password=...,ssl=True,abortConnect=False"</code></p>
-        }
+        <div id="redisStatus"><p class="muted">Checking...</p></div>
+        <p class="muted">Used from Level 4. Without Redis, the distributed demos fall back to in-memory caches and the Level 5 pages explain that Redis is missing.</p>
     </div>
 </div>
 
 <h2>The course</h2>
 <div class="grid grid-2">
-    <a class="card level-card" href="/Level1" style="text-decoration:none;color:inherit">
-        <div><b>Level 1: Fundamentals</b> <span class="badge hit">Available</span></div>
-        <ul>
-            <li>What a cache is, hits, misses, hit ratio, latency</li>
-            <li>Your first cache with IMemoryCache (cache-aside)</li>
-            <li>Absolute, sliding and combined expiration</li>
-            <li>Size limits, priorities, compaction, eviction callbacks</li>
-        </ul>
-    </a>
-    <a class="card level-card" href="/Level2" style="text-decoration:none;color:inherit">
-        <div><b>Level 2: HTTP and response caching</b> <span class="badge hit">Available</span></div>
-        <ul>
-            <li>Cache-Control, ETag, Last-Modified, 304 Not Modified</li>
-            <li>Response caching middleware and output caching</li>
-            <li>How CDNs and proxies cache</li>
-        </ul>
-    </a>
-    <div class="card level-card locked">
-        <div><b>Level 3: Caching strategies</b> <span class="badge">Next</span></div>
-        <ul>
-            <li>Cache-aside, read-through, write-through</li>
-            <li>Write-behind, write-around, refresh-ahead</li>
-        </ul>
-    </div>
-    <div class="card level-card locked">
-        <div><b>Level 4: Distributed caching</b></div>
-        <ul>
-            <li>IDistributedCache with Redis and SQL</li>
-            <li>HybridCache (local + Redis)</li>
-            <li>Serialization choices</li>
-        </ul>
-    </div>
-    <div class="card level-card locked">
-        <div><b>Level 5: Redis in depth</b></div>
-        <ul>
-            <li>Data types and real use cases</li>
-            <li>Pub/Sub, distributed locks, rate limiting</li>
-            <li>Eviction policies, persistence, replication, cluster</li>
-        </ul>
-    </div>
-    <div class="card level-card locked">
-        <div><b>Level 6: Invalidation and consistency</b></div>
-        <ul>
-            <li>Time, event, tag and version based invalidation</li>
-            <li>Stale data and eventual consistency</li>
-        </ul>
-    </div>
-    <div class="card level-card locked">
-        <div><b>Level 7: Advanced problems</b></div>
-        <ul>
-            <li>Stampede, penetration, avalanche, hot keys</li>
-            <li>Multi-level caching, Bloom filters, monitoring</li>
-            <li>Memcached, NCache, EF Core second-level cache</li>
-        </ul>
-    </div>
+    @foreach (var (title, url, lessons) in levels)
+    {
+        <div class="card level-card">
+            <a href="@url" style="text-decoration:none;color:inherit"><b>@title</b></a>
+            <ul>
+                @foreach (var (lesson, lessonUrl) in lessons)
+                {
+                    <li><a href="@lessonUrl">@lesson</a></li>
+                }
+            </ul>
+        </div>
+    }
 </div>
+
+@section Scripts {
+    <script>
+        renderRedisStatus(document.getElementById("redisStatus"));
+    </script>
+}
