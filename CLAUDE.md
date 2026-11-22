@@ -118,3 +118,9 @@ The user is a beginner and wants visuals first, little text up front. Every less
 - The container listens on port 10000 (`ASPNETCORE_HTTP_PORTS`). Render provides HTTPS.
 - The SQLite file is recreated from migrations on each deploy or restart (Render's free disk is temporary). This is fine because the data is only demo data.
 - The Redis connection string currently comes from `appsettings.json`. A `ConnectionStrings__Redis` environment variable in Render, if set, overrides it.
+
+## Presenter videos (AI instructor)
+- The user wants an AI human presenter video for every lesson. Scripts for all 28 lessons and the presenter description are in `docs/video-scripts.md`.
+- Generate videos with the Higgsfield connector (presenter video) and, if needed, ElevenLabs (voice). Use the same presenter, outfit and background in every video.
+- Each lesson view has `<div class="presenter" data-video="N.M" hidden></div>` above its story. `wwwroot/js/presenter.js` reads `wwwroot/videos/videos.json` (`{ "N.M": "https://video-url" }`) and shows a "Watch the instructor" player only for lessons listed there.
+- Prefer hosted video URLs in `videos.json` over committing large video files to the repository.

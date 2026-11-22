@@ -426,3 +426,8 @@ details.deep > summary::-webkit-details-marker { display: none; }
 .story-real small { color: var(--muted); font-size: 0.8rem; }
 .story-real .rw-logo { background: var(--surface); flex-shrink: 0; }
 @keyframes story-real-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+.presenter { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; margin: 20px 0; }
+.presenter[hidden] { display: none; }
+.presenter video { width: 100%; max-height: 520px; border-radius: 10px; background: #000; display: block; }
+.presenter-tag { background: var(--hit); }
