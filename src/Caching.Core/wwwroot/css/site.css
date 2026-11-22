@@ -295,3 +295,9 @@ pre code { overflow-wrap: normal; }
 .kv td:first-child { white-space: nowrap; color: var(--muted); width: 1%; }
 label.check { display: inline-flex; gap: 6px; align-items: center; font-size: 0.92rem; }
 .kv td { overflow-wrap: anywhere; }
+
+.badge.dbwrite { background: var(--warn-soft); color: var(--warn); }
+.badge.refreshed, .badge.l1, .badge.l2 { background: var(--accent-soft); color: var(--accent); }
+.badge.error, .badge.blocked, .badge.stale { background: var(--danger-soft); color: var(--danger); }
+.badge.fresh, .badge.allowed, .badge.acquired { background: var(--hit-soft); color: var(--hit); }
+.result-box { min-height: 48px; padding: 8px 0; }

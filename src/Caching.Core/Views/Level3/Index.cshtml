@@ -1,0 +1,127 @@
+@{
+    ViewData["Title"] = "Read strategies";
+    ViewData["Lesson"] = "l3-index";
+}
+
+<h1>3.1 Caching strategies: how data gets into the cache</h1>
+<p class="lead">A caching strategy answers two questions: who loads data into the cache when it is read, and what happens to the cache when data is written. This level compares the six classic answers.</p>
+
+<h2>The six strategies at a glance</h2>
+<div class="card">
+    <table>
+        <thead><tr><th>Strategy</th><th>Type</th><th>One-line idea</th><th>Lesson</th></tr></thead>
+        <tbody>
+            <tr><td><b>Cache-aside</b></td><td>Read</td><td>Your code checks the cache, loads from the database on a miss, and fills the cache.</td><td>3.1</td></tr>
+            <tr><td><b>Read-through</b></td><td>Read</td><td>Your code only asks the cache. The cache loads from the database itself on a miss.</td><td>3.1</td></tr>
+            <tr><td><b>Write-through</b></td><td>Write</td><td>Every write goes to the database and the cache at the same time.</td><td>3.2</td></tr>
+            <tr><td><b>Write-around</b></td><td>Write</td><td>Writes go only to the database. The cache entry is removed and refilled on the next read.</td><td>3.2</td></tr>
+            <tr><td><b>Write-behind</b></td><td>Write</td><td>Writes go to the cache now and to the database later, in batches.</td><td>3.3</td></tr>
+            <tr><td><b>Refresh-ahead</b></td><td>Read</td><td>Popular entries are reloaded in the background before they expire.</td><td>3.4</td></tr>
+        </tbody>
+    </table>
+</div>
+<p>Real systems combine them: a read strategy plus a write strategy. "Cache-aside + write-around" is the most common combination in web applications.</p>
+
+<h2>Cache-aside (lazy loading)</h2>
+<p>You already used it in Levels 1 and 2. The application owns the logic and the cache is a plain key-value store that knows nothing about the database.</p>
+<pre><code>if (cache.TryGetValue(key, out product)) return product;
+product = await repository.GetByIdAsync(id);
+cache.Set(key, product, TimeSpan.FromSeconds(20));
+return product;</code></pre>
+
+<h2>Read-through</h2>
+<p>The loading logic moves <b>into the cache component</b>. It is configured once with a loader function, and every caller just asks for a key. Libraries such as HybridCache (Level 4), NCache and many Java caches work this way.</p>
+<pre><code>services.AddSingleton&lt;IReadThroughCache&lt;ProductDto&gt;&gt;(provider =&gt; new ReadThroughCache&lt;ProductDto&gt;(
+    cache, log, "level3:read-through:product", TimeSpan.FromSeconds(60),
+    async id =&gt; (await repository.GetByIdAsync(id))?.ToDto()));
+
+var result = await readThroughCache.GetAsync(id);</code></pre>
+<p>Inside, it uses <code>IMemoryCache.GetOrCreateAsync</code>, which runs the loader only when the key is missing.</p>
+
+<div class="grid grid-2">
+    <div class="card">
+        <b>Cache-aside</b>
+        <ul>
+            <li>Simple and explicit, works with any cache</li>
+            <li>The caching code is repeated in every service that needs it</li>
+            <li>You choose per call what to cache and for how long</li>
+        </ul>
+    </div>
+    <div class="card">
+        <b>Read-through</b>
+        <ul>
+            <li>Callers stay clean: one line, no database code</li>
+            <li>Loading rules are defined once, in one place</li>
+            <li>Needs a cache library (or wrapper) that supports loaders</li>
+        </ul>
+    </div>
+</div>
+<p>Both behave the same from the outside: the first read is a slow miss, later reads are fast hits. The difference is <b>who is responsible for loading</b>.</p>
+
+<h2>Live demo</h2>
+<div class="card">
+    <div class="toolbar">
+        <label class="field">Product
+            <select id="productId"></select>
+        </label>
+        <button class="btn" id="btnClearLog">Clear event log</button>
+    </div>
+</div>
+<div class="grid grid-2">
+    <div class="card" data-strategy="cache-aside">
+        <b>Cache-aside</b> <span class="muted">(TTL 20 s)</span>
+        <div class="toolbar">
+            <button class="btn primary" data-role="get">Get</button>
+            <button class="btn danger" data-role="remove">Remove from cache</button>
+        </div>
+        <div class="result-box" data-role="result">-</div>
+    </div>
+    <div class="card" data-strategy="read-through">
+        <b>Read-through</b> <span class="muted">(TTL 60 s)</span>
+        <div class="toolbar">
+            <button class="btn primary" data-role="get">Get</button>
+            <button class="btn danger" data-role="remove">Remove from cache</button>
+        </div>
+        <div class="result-box" data-role="result">-</div>
+    </div>
+</div>
+<div class="card">
+    <b>Event log</b> <span class="muted">(read the Detail column: who did the loading?)</span>
+    <div class="events">
+        <table>
+            <thead><tr><th>Time</th><th>Event</th><th>Key</th><th>Detail</th></tr></thead>
+            <tbody id="events"></tbody>
+        </table>
+    </div>
+</div>
+
+<h2>Experiments</h2>
+<ol class="steps">
+    <li><b>Same behavior.</b> Click <em>Get</em> twice on each card. Both show a slow miss, then a fast hit.</li>
+    <li><b>Who loaded it?</b> Read the event log. Cache-aside says "the service itself loads from the database". Read-through says "the cache called its own loader".</li>
+    <li><b>Missing data.</b> In Swagger, call <code>GET /api/level3/read-through/products/999</code> twice. The second call is a fast hit with no data: <code>GetOrCreateAsync</code> cached the <code>null</code> result. Cache-aside (<code>/api/level3/cache-aside/products/999</code>) misses every time. Caching "not found" is sometimes useful (Level 7, cache penetration) and sometimes a bug.</li>
+</ol>
+
+<h2>What you should take away</h2>
+<div class="callout tip">
+    <strong>Key points</strong>
+    Cache-aside puts the loading logic in your code; read-through puts it inside the cache. Both are lazy: data enters the cache only when someone reads it, so the first read is always slow and unused data never wastes memory.
+</div>
+<div class="callout danger">
+    <strong>Common mistakes</strong>
+    Copy-pasting cache-aside code everywhere with slightly different keys and TTLs. With read-through, forgetting that a loader exception or a <code>null</code> result needs a decision: cache it, or not.
+</div>
+
+<h2>Read the code</h2>
+<ul class="code-ref">
+    <li><code>Caching.Business/Service/Implementation/CacheAsideService.cs</code></li>
+    <li><code>Caching.Business/Service/Implementation/ReadThroughCache.cs</code>: a small generic read-through cache.</li>
+    <li><code>Caching.Business/DependencyInjection.cs</code>: where the read-through cache gets its loader.</li>
+    <li><code>Caching.Core/Controllers/Api/StrategyController.cs</code>: all Level 3 endpoints.</li>
+</ul>
+
+<div class="next-link"><a class="btn primary" href="/Level3/WriteStrategies">Next: Write-through and write-around &rarr;</a></div>
+
+@section Scripts {
+    <script src="~/js/level3/read-strategies.js" asp-append-version="true"></script>
+}

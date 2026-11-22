@@ -1,0 +1,120 @@
+@{
+    ViewData["Title"] = "Write-through and write-around";
+    ViewData["Lesson"] = "l3-write";
+}
+
+<h1>3.2 Write-through and write-around</h1>
+<p class="lead">When data changes, the cache must not keep serving the old value. These two strategies handle writes in opposite ways: update the cache, or get out of the way.</p>
+
+<h2>Write-through</h2>
+<p>Every write updates the database <b>and</b> the cache in the same operation. The cache always holds the latest value, and the next read is a hit.</p>
+<div class="flow">
+    <div class="flow-step"><b>Update price</b></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step miss"><b>1. Write database</b><small>slow</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step hit"><b>2. Write cache</b><small>same request</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><b>Next read</b><small>Hit, new value</small></div>
+</div>
+<pre><code>var product = await repository.UpdatePriceAsync(id, price);
+cache.Set(key, product.ToDto(), Duration);</code></pre>
+
+<h2>Write-around</h2>
+<p>The write goes only to the database, and the cache entry is <b>removed</b> (or simply not written). The next read misses and loads the fresh value.</p>
+<div class="flow">
+    <div class="flow-step"><b>Update price</b></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step miss"><b>1. Write database</b><small>slow</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><b>2. Remove cache entry</b><small>cheap</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><b>Next read</b><small>Miss, loads new value</small></div>
+</div>
+<pre><code>await repository.UpdatePriceAsync(id, price);
+cache.Remove(key);</code></pre>
+
+<h2>Which one when?</h2>
+<div class="card">
+    <table>
+        <thead><tr><th></th><th>Write-through</th><th>Write-around</th></tr></thead>
+        <tbody>
+            <tr><td><b>Read after write</b></td><td>Hit, fast</td><td>Miss, slow once</td></tr>
+            <tr><td><b>Cost of a write</b></td><td>Database + cache</td><td>Database only</td></tr>
+            <tr><td><b>Data written but never read</b></td><td>Wastes cache memory</td><td>Never enters the cache</td></tr>
+            <tr><td><b>Risk</b></td><td>Database succeeds, cache write fails: cache is stale</td><td>Small window where an old value can be re-cached (Level 6)</td></tr>
+            <tr><td><b>Good for</b></td><td>Data that is read right after it is written (user profile after editing)</td><td>Write-heavy data, or data rarely read again soon (logs, bulk imports)</td></tr>
+        </tbody>
+    </table>
+</div>
+<div class="callout">
+    <strong>Delete, don't update?</strong>
+    Many teams prefer write-around ("delete on write") even when reads follow writes. Removing a key is simpler and safer than building the new cached value correctly in every write path. If you update the cache, the value you write must be exactly what a fresh read would produce.
+</div>
+
+<h2>Live demo</h2>
+<p>Both cards use the same product in the same database, but separate cache keys. Writes take about 800 ms, like the reads.</p>
+<div class="card">
+    <div class="toolbar">
+        <label class="field">Product
+            <select id="productId"></select>
+        </label>
+        <button class="btn" id="btnDb">Read the database directly</button>
+        <span id="dbPrice" class="muted"></span>
+    </div>
+</div>
+<div class="grid grid-2">
+    @foreach (var (strategy, title) in new[] { ("write-through", "Write-through"), ("write-around", "Write-around") })
+    {
+        <div class="card" data-strategy="@strategy">
+            <b>@title</b>
+            <div class="toolbar">
+                <button class="btn primary" data-role="get">Read</button>
+                <button class="btn" data-role="write">Update price</button>
+            </div>
+            <div class="muted">Last read</div>
+            <div class="result-box" data-role="read">-</div>
+            <div class="muted">Last write</div>
+            <div class="result-box" data-role="write-result">-</div>
+        </div>
+    }
+</div>
+<div class="card">
+    <b>Event log</b>
+    <div class="events">
+        <table>
+            <thead><tr><th>Time</th><th>Event</th><th>Key</th><th>Detail</th></tr></thead>
+            <tbody id="events"></tbody>
+        </table>
+    </div>
+</div>
+
+<h2>Experiments</h2>
+<ol class="steps">
+    <li><b>Warm both caches.</b> Click <em>Read</em> on both cards twice. Both end with a cache hit.</li>
+    <li><b>Write-through.</b> Click <em>Update price</em> on the write-through card, then <em>Read</em>. It is a <b>hit</b> with the new price: the write already put it in the cache.</li>
+    <li><b>Write-around.</b> Click <em>Update price</em> on the write-around card, then <em>Read</em>. It is a <b>miss</b> (800 ms) that loads the new price. Read again for a hit.</li>
+    <li><b>Cross-check.</b> Each card has its own cache key, but they share the database. After a write-through update, read the write-around card: it may still show the old price from its own cache. This is exactly the problem with several caches of the same data (Levels 4 and 6).</li>
+</ol>
+
+<h2>What you should take away</h2>
+<div class="callout tip">
+    <strong>Key points</strong>
+    Write-through keeps the cache fresh and makes the next read fast, at the cost of slower writes and caching data nobody may read. Write-around keeps writes simple and the cache lean, at the cost of one miss after each change. In both, the database is written first, because it is the source of truth.
+</div>
+<div class="callout danger">
+    <strong>Common mistakes</strong>
+    Writing the cache first and the database second: if the database write fails, the cache now holds a value that never existed. Forgetting one write path (an admin screen, a batch job) that changes the database without touching the cache.
+</div>
+
+<h2>Read the code</h2>
+<ul class="code-ref">
+    <li><code>Caching.Business/Service/Implementation/WriteStrategyService.cs</code>: <code>WriteThroughAsync</code> and <code>WriteAroundAsync</code> side by side.</li>
+    <li><code>Caching.Infrastructure/Repository/Implementation/ProductRepository.cs</code>: <code>UpdatePriceAsync</code> (EF Core write).</li>
+</ul>
+
+<div class="next-link"><a class="btn primary" href="/Level3/WriteBehind">Next: Write-behind &rarr;</a></div>
+
+@section Scripts {
+    <script src="~/js/level3/write-strategies.js" asp-append-version="true"></script>
+}

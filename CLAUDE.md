@@ -12,8 +12,8 @@ This repository is a **caching course**. The user is learning caching from begin
 |---|---|---|
 | 1 | Fundamentals: what caching is, IMemoryCache + cache-aside, expiration, size limits and eviction | Done |
 | 2 | HTTP caching: Cache-Control, ETag, Last-Modified, response caching, output caching, CDN concepts | Done |
-| 3 | Strategies: cache-aside, read-through, write-through, write-behind, write-around, refresh-ahead | Next |
-| 4 | Distributed caching: IDistributedCache (Redis, SQL), HybridCache, serialization | Planned |
+| 3 | Strategies: cache-aside, read-through, write-through, write-behind, write-around, refresh-ahead | Done |
+| 4 | Distributed caching: IDistributedCache (Redis, SQL), HybridCache, serialization | Next |
 | 5 | Redis in depth: data types, Pub/Sub, distributed locks, rate limiting, eviction policies, persistence, replication, cluster | Planned |
 | 6 | Invalidation and consistency: time, event, tag and version based invalidation, stale data | Planned |
 | 7 | Advanced: stampede, penetration, avalanche, hot keys, multi-level cache, Bloom filter, monitoring, Memcached, NCache, EF Core second-level cache | Planned |
@@ -74,6 +74,7 @@ src/
 - Repository reads wait `Database:SimulatedDelayMs` (appsettings) to simulate a slow database so the effect of caching is visible.
 - HTTP-level caching is configured in `Program.cs` because it belongs to the HTTP pipeline: `AddResponseCaching`/`UseResponseCaching`, `AddOutputCache` (policy `Products`, tag `products`)/`UseOutputCache` after `UseRouting`, and `UseStaticFiles` with `OnPrepareResponse` (versioned `?v=` files get `immutable`, others `no-cache`).
 - The response caching middleware stores every `public` response app-wide. Endpoints whose demos must reach the controller or show browser-only caching use `private`.
+- Level 3 strategies live in separate Business services (`CacheAsideService`, generic `ReadThroughCache<T>` with a loader set in DI, `WriteStrategyService`, `WriteBehindService` + `WriteBehindWorker` hosted service, `RefreshAheadService`). Singleton services that need the repository create a scope with `IServiceScopeFactory`.
 - Level 2 demos detect cache hits with `IRequestCounter` (`api/level2/counters`): the counter only increases when the controller action really runs.
 
 ## Portal lesson page format

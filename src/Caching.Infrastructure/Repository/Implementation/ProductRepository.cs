@@ -53,4 +53,21 @@ public class ProductRepository(AppDbContext context, IConfiguration configuratio
         await context.SaveChangesAsync();
         return true;
     }
+
+    public async Task<Product?> UpdatePriceAsync(int id, decimal price)
+    {
+        await Task.Delay(SimulatedDelayMs);
+        var existing = await context.Products.FindAsync(id);
+        if (existing is null) return null;
+        existing.Price = price;
+        existing.UpdatedAt = DateTime.UtcNow;
+        await context.SaveChangesAsync();
+        return existing;
+    }
+
+    public async Task<IEnumerable<int>> GetAllIdsAsync()
+    {
+        var connection = context.Database.GetDbConnection();
+        return await connection.QueryAsync<int>("SELECT Id FROM Products");
+    }
 }

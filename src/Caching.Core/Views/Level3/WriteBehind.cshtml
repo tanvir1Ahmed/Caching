@@ -1,0 +1,119 @@
+@{
+    ViewData["Title"] = "Write-behind";
+    ViewData["Lesson"] = "l3-behind";
+}
+
+<h1>3.3 Write-behind (write-back)</h1>
+<p class="lead">Write-behind makes writes almost instant: the cache is updated right away and the database is updated later by a background worker, often combining many changes into one write.</p>
+
+<h2>How it works</h2>
+<div class="flow">
+    <div class="flow-step"><b>Update price</b></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step hit"><b>1. Write cache</b><small>instant</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><b>2. Queue the change</b><small>return to the user</small></div>
+</div>
+<div class="flow">
+    <div class="flow-step"><b>Background worker</b><small>every 10 seconds</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><b>Take queued changes</b><small>latest value per product</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step miss"><b>Write database</b><small>one write per product</small></div>
+</div>
+<p>In this project the queue is a <code>ConcurrentDictionary</code> keyed by product id, so five price changes to the same product within 10 seconds become <b>one</b> database write with the last price. This is called <b>coalescing</b>. The worker is an ASP.NET Core <code>BackgroundService</code> that calls <code>FlushAsync</code> on a timer.</p>
+
+<h2>Trade-offs</h2>
+<div class="grid grid-2">
+    <div class="card">
+        <b>Benefits</b>
+        <ul>
+            <li>Very fast writes for the user</li>
+            <li>Fewer database writes: bursts are combined and can be batched</li>
+            <li>Smooths traffic spikes: the database works at its own pace</li>
+        </ul>
+    </div>
+    <div class="card">
+        <b>Risks</b>
+        <ul>
+            <li><b>Data loss:</b> if the process crashes before a flush, queued changes are gone</li>
+            <li><b>The database is behind:</b> reports, other services and other servers see old data until the flush</li>
+            <li>More moving parts: retries, ordering, failures while flushing</li>
+        </ul>
+    </div>
+</div>
+<div class="callout warn">
+    <strong>Production write-behind</strong>
+    Real systems never keep the queue only in process memory. They use a durable queue (Redis Streams, RabbitMQ, Kafka, Azure Service Bus) so changes survive a restart. Typical uses are counters, view counts, likes, game scores and analytics, where losing a few seconds of updates is acceptable and write volume is huge.
+</div>
+
+<h2>Live demo</h2>
+<div class="card">
+    <div class="toolbar">
+        <label class="field">Product
+            <select id="productId"></select>
+        </label>
+        <button class="btn primary" id="btnUpdate">Update price</button>
+        <button class="btn" id="btnFive">Update price 5 times</button>
+        <button class="btn" id="btnRead">Read (cache)</button>
+        <button class="btn" id="btnDb">Read the database directly</button>
+        <button class="btn" id="btnFlush">Flush now</button>
+    </div>
+    <div class="grid grid-3">
+        <div class="card stat"><div class="value" id="cachePrice">-</div><div class="label">Price in cache</div></div>
+        <div class="card stat"><div class="value" id="dbPrice">-</div><div class="label">Price in database</div></div>
+        <div class="card stat"><div class="value" id="nextFlush">-</div><div class="label">Next automatic flush</div></div>
+    </div>
+    <div class="grid grid-2" style="margin-top:12px">
+        <div class="card stat"><div class="value" id="updates">0</div><div class="label">Updates received</div></div>
+        <div class="card stat"><div class="value" id="writes">0</div><div class="label">Database writes done</div></div>
+    </div>
+</div>
+<div class="card">
+    <b>Queued changes</b> <span class="muted">(waiting to be written to the database)</span>
+    <table>
+        <thead><tr><th>Product</th><th>Price to write</th><th>Updates combined</th><th>Queued since</th></tr></thead>
+        <tbody id="pending"></tbody>
+    </table>
+</div>
+<div class="card">
+    <b>Event log</b>
+    <div class="events">
+        <table>
+            <thead><tr><th>Time</th><th>Event</th><th>Key</th><th>Detail</th></tr></thead>
+            <tbody id="events"></tbody>
+        </table>
+    </div>
+</div>
+
+<h2>Experiments</h2>
+<ol class="steps">
+    <li><b>Instant write.</b> Click <em>Read (cache)</em> once to load the product, then <em>Update price</em>. The write returns in about a millisecond and the cache shows the new price.</li>
+    <li><b>The database is behind.</b> Click <em>Read the database directly</em> before the countdown ends. The database still has the old price. A queued change appears in the table.</li>
+    <li><b>Coalescing.</b> Click <em>Update price 5 times</em>. The queue shows 5 updates combined. When the flush runs, the log says "5 update(s) combined into 1 write". Compare the two counters.</li>
+    <li><b>Flush.</b> Wait for the countdown (or click <em>Flush now</em>), then read the database again. Now it matches the cache.</li>
+    <li><b>Think about a crash.</b> If the server restarted between the update and the flush, the new price would be lost, but users already saw it. Would that be acceptable for prices? For "number of views"?</li>
+</ol>
+
+<h2>What you should take away</h2>
+<div class="callout tip">
+    <strong>Key points</strong>
+    Write-behind gives the fastest writes and the fewest database operations, because changes are queued and combined. The price is that the database lags behind the cache, and anything in an in-memory queue can be lost. Use it for high-volume, loss-tolerant data, with a durable queue in production.
+</div>
+<div class="callout danger">
+    <strong>Common mistakes</strong>
+    Using write-behind for money, orders or anything that must never be lost. Letting the cache entry expire before its change is flushed, so readers fall back to the old database value. Running several servers that each keep their own queue and cache.
+</div>
+
+<h2>Read the code</h2>
+<ul class="code-ref">
+    <li><code>Caching.Business/Service/Implementation/WriteBehindService.cs</code>: cache update, the coalescing queue and <code>FlushAsync</code>.</li>
+    <li><code>Caching.Business/Service/Implementation/WriteBehindWorker.cs</code>: the <code>BackgroundService</code> that flushes every 10 seconds.</li>
+    <li><code>Caching.Business/DependencyInjection.cs</code>: <code>AddHostedService&lt;WriteBehindWorker&gt;()</code>.</li>
+</ul>
+
+<div class="next-link"><a class="btn primary" href="/Level3/RefreshAhead">Next: Refresh-ahead &rarr;</a></div>
+
+@section Scripts {
+    <script src="~/js/level3/write-behind.js" asp-append-version="true"></script>
+}

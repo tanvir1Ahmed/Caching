@@ -1,0 +1,113 @@
+@{
+    ViewData["Title"] = "Refresh-ahead";
+    ViewData["Lesson"] = "l3-refresh";
+}
+
+<h1>3.4 Refresh-ahead</h1>
+<p class="lead">With normal expiration, some unlucky user always pays for the reload. Refresh-ahead reloads popular entries in the background shortly before they expire, so users keep getting fast hits.</p>
+
+<h2>The problem it solves</h2>
+<p>With cache-aside and a 20-second TTL, the entry disappears at second 20 and the next user waits for the database. For a page that gets 100 requests per second, that is a visible spike in latency every 20 seconds, and a burst of database load if many requests miss at once.</p>
+
+<h2>How it works</h2>
+<p>Each entry has a TTL (20 s) and a <b>refresh threshold</b> (75% of the TTL, so 15 s). When a read finds an entry older than the threshold, it returns the cached value immediately <b>and</b> starts a background reload. When the reload finishes, the fresh value replaces the old one with a new 20-second TTL.</p>
+<div class="flow">
+    <div class="flow-step hit"><b>0 to 15 s</b><small>Normal hits</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><b>15 to 20 s</b><small>Hit + background refresh starts</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step hit"><b>Refresh done</b><small>New value, TTL restarts</small></div>
+    <div class="flow-arrow">/</div>
+    <div class="flow-step miss"><b>No read before 20 s</b><small>Expires normally, next read waits</small></div>
+</div>
+<p>A small dictionary of "refresh in progress" flags makes sure only <b>one</b> background refresh runs per key, even if many requests arrive in the refresh window.</p>
+<div class="callout">
+    <strong>Compared with stale-while-revalidate</strong>
+    This is the same idea as the HTTP <code>stale-while-revalidate</code> from lesson 2.1, but inside your application. Refresh-ahead starts before expiry, so the value is never stale. Stale-while-revalidate serves a value that has already expired.
+</div>
+
+<h2>Live demo</h2>
+<p>Both cards read the same product with the same 20-second TTL. Only the right card refreshes ahead.</p>
+<div class="card">
+    <div class="toolbar">
+        <label class="field">Product
+            <select id="productId"></select>
+        </label>
+        <label class="check"><input type="checkbox" id="auto" /> Read both every 3 seconds automatically</label>
+    </div>
+</div>
+<div class="grid grid-2">
+    @foreach (var (strategy, title) in new[] { ("cache-aside", "Plain expiration (cache-aside)"), ("refresh-ahead", "Refresh-ahead (refresh after 15 s)") })
+    {
+        <div class="card" data-strategy="@strategy">
+            <b>@title</b>
+            <div class="countdown" data-role="age">-</div>
+            <div class="muted">age of the cached copy</div>
+            <div class="toolbar">
+                <button class="btn primary" data-role="get">Read</button>
+                <button class="btn danger" data-role="remove">Remove</button>
+            </div>
+            <div class="result-box" data-role="result">-</div>
+            <div class="muted" data-role="slow">Slow reads (user waited for the database): 0</div>
+        </div>
+    }
+</div>
+<div class="card">
+    <b>Event log</b>
+    <div class="events">
+        <table>
+            <thead><tr><th>Time</th><th>Event</th><th>Key</th><th>Detail</th></tr></thead>
+            <tbody id="events"></tbody>
+        </table>
+    </div>
+</div>
+
+<h2>Experiments</h2>
+<ol class="steps">
+    <li><b>Simulate steady traffic.</b> Tick <em>Read both every 3 seconds automatically</em> and watch for a minute.</li>
+    <li><b>Plain expiration.</b> On the left, the age climbs to 20 s, then one read is slow (800 ms) and the age restarts. The slow-read counter keeps growing.</li>
+    <li><b>Refresh-ahead.</b> On the right, after 15 s a read logs "started a background refresh", shortly followed by <span class="badge refreshed">Refreshed</span>, and the age restarts without any slow read. Only the very first read was slow.</li>
+    <li><b>Unpopular data.</b> Untick the box and wait 25 s. Refresh-ahead only refreshes on reads, so an entry nobody reads expires normally. That is a feature: it does not waste work on cold data.</li>
+</ol>
+
+<h2>Choosing a strategy</h2>
+<div class="card">
+    <table>
+        <thead><tr><th>Situation</th><th>Good choice</th></tr></thead>
+        <tbody>
+            <tr><td>General web app, simple needs</td><td>Cache-aside + write-around (delete on write)</td></tr>
+            <tr><td>Many services read the same data, you want one loading rule</td><td>Read-through (HybridCache, Level 4)</td></tr>
+            <tr><td>Users read their data right after saving it</td><td>Write-through</td></tr>
+            <tr><td>Huge write volume, small losses acceptable (views, likes, scores)</td><td>Write-behind with a durable queue</td></tr>
+            <tr><td>Hot data that is expensive to load, latency spikes hurt</td><td>Refresh-ahead</td></tr>
+            <tr><td>Data must be 100% current (stock during checkout, balances)</td><td>Do not cache, or cache with very short TTL and validation</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<h2>What you should take away</h2>
+<div class="callout tip">
+    <strong>Key points</strong>
+    Refresh-ahead keeps hot entries warm by reloading them in the background before they expire, so readers almost never wait. It needs a refresh threshold, a guard so only one refresh runs per key, and it should only refresh entries that are actually being read.
+</div>
+<div class="callout danger">
+    <strong>Common mistakes</strong>
+    Refreshing every key on a timer, including ones nobody reads, which multiplies database load. Starting one refresh per request in the window instead of one per key. Swallowing refresh errors silently so the cache quietly expires.
+</div>
+
+<div class="callout">
+    <strong>Level 3 complete</strong>
+    You can now name and compare all six classic strategies and pick a combination for a given situation. Level 4 moves the cache out of a single server: distributed caching with Redis.
+</div>
+
+<h2>Read the code</h2>
+<ul class="code-ref">
+    <li><code>Caching.Business/Service/Implementation/RefreshAheadService.cs</code>: the threshold check, the "refreshing" guard and the background reload.</li>
+    <li><code>Caching.Business/Service/Implementation/CacheAsideService.cs</code>: the plain version for comparison.</li>
+</ul>
+
+<div class="next-link"><a class="btn primary" href="/Level4">Next: Level 4, distributed caching &rarr;</a></div>
+
+@section Scripts {
+    <script src="~/js/level3/refresh-ahead.js" asp-append-version="true"></script>
+}
