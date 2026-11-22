@@ -3,7 +3,7 @@ Stories["1.1"] = {
     nodes: {
         user: node(75, 130, "👤", "You"),
         app: node(265, 130, "🖥️", "App"),
-        cache: node(530, 50, "⚡", "Cache", "empty"),
+        cache: node(530, 62, "⚡", "Cache", "empty"),
         db: node(530, 210, "🗄️", "Database", "slow: 800 ms")
     },
     links: [["user", "app"], ["app", "cache"], ["app", "db"]],
@@ -25,7 +25,7 @@ Stories["1.2"] = {
     nodes: {
         user: node(75, 130, "👤", "You"),
         app: node(265, 130, "🖥️", "App"),
-        cache: node(530, 50, "⚡", "IMemoryCache", "empty"),
+        cache: node(530, 62, "⚡", "IMemoryCache", "empty"),
         db: node(530, 210, "🗄️", "Database", "price $1200")
     },
     links: [["user", "app"], ["app", "cache"], ["app", "db"]],

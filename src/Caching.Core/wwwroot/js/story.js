@@ -40,6 +40,7 @@ const StoryPlayer = (() => {
             this.container.innerHTML = `
                 <div class="story-head"><span class="story-tag">${this.scene.tag ?? "Watch it"}</span><span class="story-title"></span></div>
                 <div class="story-stage"></div>
+                <div class="story-real" hidden></div>
                 <div class="story-caption"><span class="story-step"></span><span class="story-text"></span></div>
                 <div class="story-controls">
                     <button class="btn primary" data-act="play">&#9654; Play</button>
@@ -54,6 +55,7 @@ const StoryPlayer = (() => {
             this.stepLabel = this.container.querySelector(".story-step");
             this.playButton = this.container.querySelector("[data-act=play]");
             this.narrateBox = this.container.querySelector("[data-act=narrate]");
+            this.realBanner = this.container.querySelector(".story-real");
 
             const root = svg("svg", { viewBox: `0 0 ${width} ${height}`, class: "story-svg", role: "img" }, this.container.querySelector(".story-stage"));
             const defs = svg("defs", {}, root);
@@ -79,7 +81,7 @@ const StoryPlayer = (() => {
                 const label = svg("text", { x: 42, y: h / 2 - 4, class: "story-label" }, group);
                 label.textContent = n.label;
                 const sub = svg("text", { x: 42, y: h / 2 + 14, class: "story-sub" }, group);
-                this.nodes[id] = { ...n, initial: n.sub ?? "", w, h, group, rect, sub };
+                this.nodes[id] = { ...n, initial: n.sub ?? "", w, h, group, rect, sub, labelEl: label };
             });
 
             (this.scene.links ?? []).forEach(([a, b, options = {}]) => {
@@ -114,10 +116,12 @@ const StoryPlayer = (() => {
         reset() {
             Object.values(this.nodes).forEach(n => {
                 n.sub.textContent = n.initial;
+                n.labelEl.textContent = n.label;
                 n.group.classList.remove("dim", "hi");
                 n.rect.removeAttribute("style");
             });
             this.fxLayer.innerHTML = "";
+            this.realBanner.hidden = true;
             this.clock.textContent = this.scene.clock ?? "";
             this.index = 0;
             this.stepLabel.textContent = "";
@@ -181,6 +185,7 @@ const StoryPlayer = (() => {
             list(step.undim).flat().forEach(id => this.nodes[id]?.group.classList.remove("dim"));
             list(step.dim).flat().forEach(id => this.nodes[id]?.group.classList.add("dim"));
             Object.entries(step.set ?? {}).forEach(([id, text]) => this.nodes[id].sub.textContent = text);
+            Object.entries(step.rename ?? {}).forEach(([id, text]) => this.nodes[id].labelEl.textContent = text);
             if (step.clock !== undefined) this.clock.textContent = step.clock;
         }
 
@@ -199,16 +204,34 @@ const StoryPlayer = (() => {
             const speech = !options.silent && step.say ? this.speak(step.say) : Promise.resolve();
 
             this.applyState(step);
+            this.showReal(step.real);
             list(step.hi).flat().forEach(id => this.nodes[id]?.group.classList.add("hi"));
 
-            for (const move of list(step.before)) await this.move(move, speed);
+            for (const move of list(step.before)) {
+                await this.move(move, speed);
+                if (token !== this.token) return;
+            }
             await Promise.all(list(step.move).map(move => this.move(move, speed)));
-            for (const move of list(step.then)) await this.move(move, speed);
+            if (token !== this.token) return;
+            for (const move of list(step.then)) {
+                await this.move(move, speed);
+                if (token !== this.token) return;
+            }
             if (step.after) this.applyState(step.after);
             list(step.flash).forEach(flash => this.flash(...flash));
 
             const hold = options.holdMs ?? step.wait ?? Math.max(1500, 900 + (step.say?.length ?? 0) * 38);
             await Promise.all([sleep(hold), speech]);
+        }
+
+        showReal(real) {
+            if (!real) {
+                this.realBanner.hidden = true;
+                return;
+            }
+            this.realBanner.style.setProperty("--rw", real.color);
+            this.realBanner.innerHTML = `<span class="rw-logo">${real.icon}</span><div><b>Real world: ${real.who}</b><small>Source: ${real.source}</small></div>`;
+            this.realBanner.hidden = false;
         }
 
         speak(text) {
@@ -255,7 +278,9 @@ const StoryPlayer = (() => {
             const n = this.nodes[id];
             const color = tones[tone] ?? tone;
             const widthPx = Math.max(44, text.length * 8 + 20);
-            const group = svg("g", { class: "story-flash", transform: `translate(${n.x},${n.y - n.h / 2 - 6})` }, this.fxLayer);
+            const above = n.y - n.h / 2 - 6;
+            const y = above < 26 ? n.y + n.h / 2 + 28 : above;
+            const group = svg("g", { class: "story-flash", transform: `translate(${n.x},${y})` }, this.fxLayer);
             svg("rect", { x: -widthPx / 2, y: -22, width: widthPx, height: 22, rx: 11, fill: color }, group);
             const label = svg("text", { y: -7, "text-anchor": "middle", class: "story-flash-text" }, group);
             label.textContent = text;
