@@ -1,3 +1,4 @@
+using System;
 using Caching.Infrastructure.Data.DbContext;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -30,6 +31,9 @@ namespace Caching.Infrastructure.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
                     b.ToTable("Products");
@@ -39,61 +43,71 @@ namespace Caching.Infrastructure.Data.Migrations
                         {
                             Id = 1,
                             Name = "Laptop",
-                            Price = 1200m
+                            Price = 1200m,
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
                         {
                             Id = 2,
                             Name = "Mouse",
-                            Price = 25m
+                            Price = 25m,
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
                         {
                             Id = 3,
                             Name = "Keyboard",
-                            Price = 45m
+                            Price = 45m,
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
                         {
                             Id = 4,
                             Name = "Monitor",
-                            Price = 300m
+                            Price = 300m,
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
                         {
                             Id = 5,
                             Name = "Headphones",
-                            Price = 80m
+                            Price = 80m,
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
                         {
                             Id = 6,
                             Name = "Webcam",
-                            Price = 60m
+                            Price = 60m,
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
                         {
                             Id = 7,
                             Name = "Microphone",
-                            Price = 110m
+                            Price = 110m,
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
                         {
                             Id = 8,
                             Name = "Desk Lamp",
-                            Price = 35m
+                            Price = 35m,
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
                         {
                             Id = 9,
                             Name = "USB Hub",
-                            Price = 20m
+                            Price = 20m,
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         },
                         new
                         {
                             Id = 10,
                             Name = "External SSD",
-                            Price = 150m
+                            Price = 150m,
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         });
                 });
 #pragma warning restore 612, 618

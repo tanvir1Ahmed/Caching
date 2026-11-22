@@ -18,6 +18,8 @@ public static class DependencyInjection
         services.AddScoped<IMemoryCacheBasicService, MemoryCacheBasicService>();
         services.AddScoped<IExpirationService, ExpirationService>();
         services.AddSingleton<IEvictionService, EvictionService>();
+        services.AddSingleton<IRequestCounter, RequestCounter>();
+        services.AddScoped<IHttpCacheService, HttpCacheService>();
 
         return services;
     }

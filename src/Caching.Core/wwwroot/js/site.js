@@ -54,3 +54,32 @@ async function renderEvents(prefix, tbody) {
             <td>${escapeHtml(e.detail)}</td>
         </tr>`).join("");
 }
+
+Api.raw = async function (url, options = {}) {
+    const started = performance.now();
+    const response = await fetch(url, {
+        method: options.method ?? "GET",
+        headers: options.headers ?? {},
+        cache: options.cache ?? "default"
+    });
+    const text = await response.text();
+    const headers = {};
+    response.headers.forEach((value, key) => headers[key] = value);
+    const isJson = (response.headers.get("content-type") ?? "").includes("json");
+    return {
+        status: response.status,
+        ok: response.ok,
+        headers,
+        text,
+        size: new Blob([text]).size,
+        data: text && isJson ? JSON.parse(text) : null,
+        roundTripMs: performance.now() - started
+    };
+};
+
+async function getCounter(scope) {
+    const counters = (await Api.call("GET", "/api/level2/counters")).data ?? {};
+    return counters[scope] ?? 0;
+}
+
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));

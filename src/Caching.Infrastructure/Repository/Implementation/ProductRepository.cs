@@ -15,7 +15,7 @@ public class ProductRepository(AppDbContext context, IConfiguration configuratio
     {
         await Task.Delay(SimulatedDelayMs);
         var connection = context.Database.GetDbConnection();
-        return await connection.QueryAsync<Product>("SELECT Id, Name, Price FROM Products");
+        return await connection.QueryAsync<Product>("SELECT Id, Name, Price, UpdatedAt FROM Products");
     }
 
     public async Task<Product?> GetByIdAsync(int id)
@@ -23,11 +23,12 @@ public class ProductRepository(AppDbContext context, IConfiguration configuratio
         await Task.Delay(SimulatedDelayMs);
         var connection = context.Database.GetDbConnection();
         return await connection.QueryFirstOrDefaultAsync<Product>(
-            "SELECT Id, Name, Price FROM Products WHERE Id = @Id", new { Id = id });
+            "SELECT Id, Name, Price, UpdatedAt FROM Products WHERE Id = @Id", new { Id = id });
     }
 
     public async Task<Product> AddAsync(Product product)
     {
+        product.UpdatedAt = DateTime.UtcNow;
         context.Products.Add(product);
         await context.SaveChangesAsync();
         return product;
@@ -39,6 +40,7 @@ public class ProductRepository(AppDbContext context, IConfiguration configuratio
         if (existing is null) return false;
         existing.Name = product.Name;
         existing.Price = product.Price;
+        existing.UpdatedAt = DateTime.UtcNow;
         await context.SaveChangesAsync();
         return true;
     }

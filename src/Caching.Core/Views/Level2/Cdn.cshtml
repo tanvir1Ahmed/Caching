@@ -1,0 +1,124 @@
+@{
+    ViewData["Title"] = "CDNs and static files";
+    ViewData["Lesson"] = "l2-cdn";
+}
+
+<h1>2.5 CDNs, proxies and static files</h1>
+<p class="lead">Between the browser and your server there can be shared caches that serve thousands of users from one copy. The same <code>Cache-Control</code> header controls them too.</p>
+
+<h2>Private caches and shared caches</h2>
+<div class="grid grid-2">
+    <div class="card">
+        <b>Private cache</b>
+        <p class="muted">Belongs to one user: the browser cache. It may store anything not marked <code>no-store</code>, including <code>private</code> responses.</p>
+    </div>
+    <div class="card">
+        <b>Shared cache</b>
+        <p class="muted">Serves many users: CDNs, reverse proxies (Nginx, Varnish), company proxies, and the response cache from lesson 2.3. It must never store <code>private</code> responses.</p>
+    </div>
+</div>
+
+<h2>What a CDN does</h2>
+<p>A <b>Content Delivery Network</b> (Cloudflare, Amazon CloudFront, Azure Front Door, Fastly, Akamai...) has servers called <b>edge locations</b> in hundreds of cities. Users connect to the nearest edge. If the edge has a fresh copy, it answers in a few milliseconds. If not, it asks your server (the <b>origin</b>), stores the answer and serves the next users from it.</p>
+<div class="flow">
+    <div class="flow-step"><b>User in Tokyo</b><small>Requests <code>/css/site.css</code></small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step hit"><b>Nearest edge</b><small>HIT: answers in ~10 ms</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><b>Only on a MISS</b><small>Edge asks the origin</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step miss"><b>Origin server</b><small>Your app (for example on Render)</small></div>
+</div>
+<p>Benefits: much lower latency for users far from your server, far less traffic and load on the origin, and protection against traffic spikes because the edge absorbs them.</p>
+
+<h2>Headers that matter for shared caches</h2>
+<div class="card">
+    <table>
+        <thead><tr><th>Header</th><th>Why it matters</th></tr></thead>
+        <tbody>
+            <tr><td><code>public</code> / <code>private</code></td><td>Whether a shared cache may store the response at all.</td></tr>
+            <tr><td><code>s-maxage=600</code></td><td>Lifetime for shared caches only. A common pattern is <code>max-age=60, s-maxage=600</code>: browsers check every minute, the CDN keeps it 10 minutes. You can purge the CDN, but not users' browsers.</td></tr>
+            <tr><td><code>Vary</code></td><td>Lists request headers that change the response, for example <code>Vary: Accept-Encoding</code> (gzip or brotli). The cache keeps one copy per value. <code>Vary: User-Agent</code> creates thousands of copies and kills the hit ratio. <code>Vary: *</code> means never reuse.</td></tr>
+            <tr><td><code>Age</code></td><td>Added by the cache: how many seconds ago the copy was fetched from the origin.</td></tr>
+            <tr><td><code>CF-Cache-Status</code>, <code>X-Cache</code></td><td>Vendor headers that tell you whether the CDN answered with a HIT, MISS, EXPIRED, etc.</td></tr>
+            <tr><td><code>stale-if-error</code></td><td>Lets the CDN keep serving content if your origin is down.</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<h2>The cache key and purging</h2>
+<p>A CDN identifies a cached object by its <b>cache key</b>, usually the host, path and query string. <code>/style.css?v=1</code> and <code>/style.css?v=2</code> are different objects. To update content before its TTL ends you <b>purge</b> it (remove it from all edges through the CDN's dashboard or API, by URL, prefix or tag). Purging takes seconds to minutes and does not reach browsers that already have a fresh copy.</p>
+
+<h2>Static files: versioning instead of purging</h2>
+<p>CSS, JavaScript and images are perfect for caching, but you also want users to get changes immediately after a deploy. The standard solution is <b>cache busting</b> (fingerprinting): put a version in the URL that changes whenever the file changes, and cache that URL forever.</p>
+<p>This portal does it already. In the layout:</p>
+<pre><code>&lt;link rel="stylesheet" href="~/css/site.css" asp-append-version="true" /&gt;</code></pre>
+<p>ASP.NET Core renders it as <code>/css/site.css?v=&lt;hash of the file&gt;</code>. When you edit the file, the hash changes, so the URL is new and every cache fetches it fresh. In <code>Program.cs</code> the static file middleware then sets:</p>
+<div class="card">
+    <table>
+        <thead><tr><th>Request</th><th>Cache-Control</th><th>Why</th></tr></thead>
+        <tbody>
+            <tr><td><code>/css/site.css?v=...</code></td><td><code>public, max-age=31536000, immutable</code></td><td>This URL's content can never change, so cache it for a year and never revalidate.</td></tr>
+            <tr><td><code>/css/site.css</code></td><td><code>no-cache</code></td><td>Without a version the content can change, so always revalidate. The static file middleware sends an ETag automatically, so it is usually a cheap 304.</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<h2>Live demo: header inspector</h2>
+<p>Pick a URL from this app and see the caching headers the server sends, with a plain-language explanation. Requests are sent with the browser cache off, so you always see the server's real answer.</p>
+<div class="card">
+    <div class="toolbar" id="presets"></div>
+    <div class="toolbar">
+        <input id="url" style="flex:1;min-width:240px" />
+        <button class="btn primary" id="btnInspect">Inspect</button>
+    </div>
+    <div class="grid grid-2">
+        <div>
+            <b>Response headers</b>
+            <table class="kv"><tbody id="headers"><tr><td class="muted">Choose a URL above.</td></tr></tbody></table>
+        </div>
+        <div>
+            <b>What this means</b>
+            <ul id="explanation"><li class="muted">Choose a URL above.</li></ul>
+        </div>
+    </div>
+</div>
+
+<div class="callout">
+    <strong>About the live site on Render</strong>
+    Render runs your app as the origin. It does not cache your API responses for you. To cache at the edge you would put a CDN such as Cloudflare in front of your domain. It would then follow the <code>public</code>, <code>s-maxage</code> and <code>Vary</code> headers described above.
+</div>
+
+<h2>Experiments</h2>
+<ol class="steps">
+    <li><b>Versioned file.</b> Inspect the <em>site.css with version</em> preset. You see <code>immutable</code> and a one-year <code>max-age</code>.</li>
+    <li><b>Unversioned file.</b> Inspect <em>site.css without version</em>. You see <code>no-cache</code> plus an <code>ETag</code> and <code>Last-Modified</code>, so browsers revalidate every time.</li>
+    <li><b>Compare the API endpoints.</b> Inspect the endpoints from lessons 2.1 to 2.4. Notice that the output cache endpoint sends no <code>Cache-Control</code> at all: output caching is invisible to browsers and CDNs.</li>
+    <li><b>Look in DevTools.</b> Reload this page with DevTools &rarr; Network open. The versioned CSS and JS files show "(memory cache)" or "(disk cache)": the browser did not contact the server for them.</li>
+</ol>
+
+<h2>What you should take away</h2>
+<div class="callout tip">
+    <strong>Key points</strong>
+    Shared caches (CDNs, proxies) serve one stored copy to many users, controlled by <code>public</code>, <code>s-maxage</code> and <code>Vary</code>. Never let them store personal data: use <code>private</code> or <code>no-store</code>. For static files, put a version in the URL and cache it forever with <code>immutable</code>. A new version means a new URL, so you never need to purge.
+</div>
+<div class="callout danger">
+    <strong>Common mistakes</strong>
+    A page with a user's name cached as <code>public</code> at the CDN, so every visitor sees the first user's name. This has happened to real companies. Other mistakes: long <code>max-age</code> on unversioned files, so users keep old CSS after a deploy, and <code>Vary</code> on headers with many values.
+</div>
+
+<div class="callout">
+    <strong>Level 2 complete</strong>
+    You can now control browser caching with <code>Cache-Control</code>, save bandwidth with ETags and 304s, cache whole responses on the server with response caching and output caching, and reason about CDNs and static files. Level 3 returns to application code and compares the main caching strategies: cache-aside, read-through, write-through, write-behind, write-around and refresh-ahead.
+</div>
+
+<h2>Read the code</h2>
+<ul class="code-ref">
+    <li><code>Caching.Core/Program.cs</code>: <code>UseStaticFiles</code> with <code>OnPrepareResponse</code> setting <code>Cache-Control</code> for versioned and unversioned files.</li>
+    <li><code>Caching.Core/Views/Shared/_Layout.cshtml</code>: <code>asp-append-version="true"</code> on the CSS and JS links.</li>
+    <li><code>wwwroot/js/level2/cdn.js</code>: how the inspector reads and explains the headers.</li>
+</ul>
+
+@section Scripts {
+    <script src="~/js/level2/cdn.js" asp-append-version="true"></script>
+}

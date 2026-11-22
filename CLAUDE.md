@@ -11,8 +11,8 @@ This repository is a **caching course**. The user is learning caching from begin
 | Level | Topic | Status |
 |---|---|---|
 | 1 | Fundamentals: what caching is, IMemoryCache + cache-aside, expiration, size limits and eviction | Done |
-| 2 | HTTP caching: Cache-Control, ETag, Last-Modified, response caching, output caching, CDN concepts | Next |
-| 3 | Strategies: cache-aside, read-through, write-through, write-behind, write-around, refresh-ahead | Planned |
+| 2 | HTTP caching: Cache-Control, ETag, Last-Modified, response caching, output caching, CDN concepts | Done |
+| 3 | Strategies: cache-aside, read-through, write-through, write-behind, write-around, refresh-ahead | Next |
 | 4 | Distributed caching: IDistributedCache (Redis, SQL), HybridCache, serialization | Planned |
 | 5 | Redis in depth: data types, Pub/Sub, distributed locks, rate limiting, eviction policies, persistence, replication, cluster | Planned |
 | 6 | Invalidation and consistency: time, event, tag and version based invalidation, stale data | Planned |
@@ -72,6 +72,9 @@ src/
 - Dependency registration: each library exposes extension methods in `DependencyInjection.cs` (`AddInfrastructure`, `AddBusiness`, `ApplyDatabaseMigrations`). `Program.cs` calls only the Business ones.
 - Data access convention: Dapper for reads, EF Core for writes.
 - Repository reads wait `Database:SimulatedDelayMs` (appsettings) to simulate a slow database so the effect of caching is visible.
+- HTTP-level caching is configured in `Program.cs` because it belongs to the HTTP pipeline: `AddResponseCaching`/`UseResponseCaching`, `AddOutputCache` (policy `Products`, tag `products`)/`UseOutputCache` after `UseRouting`, and `UseStaticFiles` with `OnPrepareResponse` (versioned `?v=` files get `immutable`, others `no-cache`).
+- The response caching middleware stores every `public` response app-wide. Endpoints whose demos must reach the controller or show browser-only caching use `private`.
+- Level 2 demos detect cache hits with `IRequestCounter` (`api/level2/counters`): the counter only increases when the controller action really runs.
 
 ## Portal lesson page format
 Every lesson view follows the same structure:

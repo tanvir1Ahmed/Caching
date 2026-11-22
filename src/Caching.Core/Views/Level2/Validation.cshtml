@@ -1,0 +1,138 @@
+@{
+    ViewData["Title"] = "ETag and 304";
+    ViewData["Lesson"] = "l2-validation";
+}
+
+<h1>2.2 Validation: ETag, Last-Modified and 304 Not Modified</h1>
+<p class="lead">When a cached copy is stale, the browser does not download everything again. It asks "has this changed since my copy?", and if not, the server answers with a tiny 304 response.</p>
+
+<h2>Validators: a fingerprint for a response</h2>
+<p>A <b>validator</b> is a small value that identifies one version of a response. The server sends it with the response, the browser stores it with its copy, and sends it back later to ask whether its copy is still current.</p>
+<div class="grid grid-2">
+    <div class="card">
+        <b>ETag (entity tag)</b>
+        <p class="muted">An identifier for this exact version of the content, for example a hash. Any change gives a new ETag.</p>
+        <pre><code>Response: ETag: "c65a19797904665f"
+Request:  If-None-Match: "c65a19797904665f"</code></pre>
+    </div>
+    <div class="card">
+        <b>Last-Modified</b>
+        <p class="muted">The date and time the content last changed. Only precise to the <b>second</b>.</p>
+        <pre><code>Response: Last-Modified: Thu, 01 Jan 2026 00:00:00 GMT
+Request:  If-Modified-Since: Thu, 01 Jan 2026 00:00:00 GMT</code></pre>
+    </div>
+</div>
+
+<h2>The conversation</h2>
+<div class="flow">
+    <div class="flow-step"><b>1. First request</b><small>No validator yet</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step miss"><b>200 OK + body</b><small>with <code>ETag</code> and <code>Last-Modified</code></small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><b>2. Later request</b><small><code>If-None-Match: "etag"</code></small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step hit"><b>304 Not Modified</b><small>No body. "Your copy is still good."</small></div>
+</div>
+<p>If the content changed, the ETag no longer matches and the server returns a normal <b>200</b> with the new body and the new ETag.</p>
+
+<h2>Rules worth knowing</h2>
+<ul>
+    <li><b>ETag wins.</b> If a request has both <code>If-None-Match</code> and <code>If-Modified-Since</code>, the server must use the ETag and ignore the date.</li>
+    <li><b>Strong vs weak ETags.</b> <code>"abc"</code> is strong: byte-for-byte identical. <code>W/"abc"</code> is weak: "means the same", for example the same data with different whitespace or compression.</li>
+    <li><b>304 saves bandwidth, not always server work.</b> In this demo the server still reads the database to build the ETag, so a 304 is still slow (800 ms) but sends no body. Real systems make validation cheap by building the ETag from a version number or <code>UpdatedAt</code> column, or by caching it.</li>
+    <li><b>ETags also protect writes.</b> <code>If-Match: "etag"</code> on a PUT means "only update if nobody changed it since I read it" (412 Precondition Failed otherwise). This is optimistic concurrency, built on the same idea.</li>
+</ul>
+
+<h2>Live demo</h2>
+<p>This endpoint sends <code>Cache-Control: no-cache</code>, an <code>ETag</code> and a <code>Last-Modified</code> header. The buttons send the requests <b>by hand</b> with the browser cache turned off, so you can see the real 304 responses.</p>
+<div class="card">
+    <div class="toolbar">
+        <label class="field">Product
+            <select id="productId">
+                <option value="1">1 - Laptop</option>
+                <option value="2">2 - Mouse</option>
+                <option value="3">3 - Keyboard</option>
+            </select>
+        </label>
+    </div>
+    <div class="toolbar">
+        <button class="btn" id="btnPlain">1. Normal request</button>
+        <button class="btn primary" id="btnEtag">2. Send If-None-Match</button>
+        <button class="btn primary" id="btnDate">3. Send If-Modified-Since</button>
+        <button class="btn" id="btnPrice">Change price in database</button>
+        <button class="btn" id="btnClear">Clear history</button>
+    </div>
+    <div class="grid grid-2">
+        <div>
+            <b>Saved validators</b> <span class="muted">(what a browser would remember)</span>
+            <table class="kv">
+                <tbody>
+                    <tr><td>ETag</td><td class="mono" id="savedEtag">none yet</td></tr>
+                    <tr><td>Last-Modified</td><td class="mono" id="savedDate">none yet</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div>
+            <b>Last exchange</b>
+            <table class="kv">
+                <tbody>
+                    <tr><td>Request header</td><td class="mono" id="lastRequest">-</td></tr>
+                    <tr><td>Status</td><td class="mono" id="lastStatus">-</td></tr>
+                    <tr><td>Body size</td><td class="mono" id="lastSize">-</td></tr>
+                    <tr><td>Response ETag</td><td class="mono" id="lastEtag">-</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <b>History</b>
+    <table>
+        <thead><tr><th>#</th><th>Request</th><th>Status</th><th>Body size</th><th>Time</th><th>Price</th></tr></thead>
+        <tbody id="history"><tr><td colspan="6" class="muted">No requests yet.</td></tr></tbody>
+    </table>
+</div>
+
+<div class="card">
+    <b>Server event log</b>
+    <div class="events">
+        <table>
+            <thead><tr><th>Time</th><th>Event</th><th>Key</th><th>Detail</th></tr></thead>
+            <tbody id="events"></tbody>
+        </table>
+    </div>
+</div>
+
+<h2>Experiments</h2>
+<ol class="steps">
+    <li><b>Get a validator.</b> Click <em>Normal request</em>. You get <span class="status-200">200</span> with a body of a few hundred bytes. The ETag and Last-Modified are saved.</li>
+    <li><b>Ask with the ETag.</b> Click <em>Send If-None-Match</em>. You get <span class="status-304">304</span> with a body of <b>0 bytes</b>.</li>
+    <li><b>Ask with the date.</b> Click <em>Send If-Modified-Since</em>. Also 304, because the product has not changed since that date.</li>
+    <li><b>Change the data.</b> Click <em>Change price in database</em>, then <em>Send If-None-Match</em> again. Now you get 200 with the new price and a <b>new</b> ETag, because the content changed. Send it once more: 304 again, using the new ETag.</li>
+    <li><b>Think about scale.</b> A product list of 200 KB polled by 10,000 users every minute is 2 GB per minute. If the list rarely changes, 304s turn that into a few MB.</li>
+</ol>
+
+<h2>What you should take away</h2>
+<div class="callout tip">
+    <strong>Key points</strong>
+    Validators let a stale copy be reused after a quick check. A 304 has no body, so it saves bandwidth and parsing. Prefer ETags, they are exact. Last-Modified is a simpler fallback with one-second precision. <code>no-cache</code> plus an ETag is a great default for API data that must always be current but is often unchanged.
+</div>
+<div class="callout danger">
+    <strong>Common mistakes</strong>
+    Generating the ETag from something that changes on every request (like a timestamp of when the response was built), so it never matches. Using a different ETag on each server behind a load balancer for the same content. Forgetting that computing the ETag can be as expensive as the full response if it needs the same database query.
+</div>
+
+<h2>Read the code</h2>
+<ul class="code-ref">
+    <li><code>Caching.Core/Controllers/Api/ValidationController.cs</code>: sends the validators and decides between 200 and 304 (ETag first, then date).</li>
+    <li><code>Caching.Business/Service/Implementation/HttpCacheService.cs</code>: <code>CreateETag</code> hashes the product content. <code>LastModified</code> comes from the new <code>UpdatedAt</code> column.</li>
+    <li><code>Caching.Infrastructure/Data/Migrations/*_AddProductUpdatedAt.cs</code>: the migration that added <code>UpdatedAt</code>.</li>
+    <li><code>Caching.Infrastructure/Repository/Implementation/ProductRepository.cs</code>: <code>UpdateAsync</code> sets <code>UpdatedAt</code>, which changes both validators.</li>
+</ul>
+
+<div class="next-link"><a class="btn primary" href="/Level2/ResponseCaching">Next: Response caching &rarr;</a></div>
+
+@section Scripts {
+    <script src="~/js/level2/validation.js" asp-append-version="true"></script>
+}

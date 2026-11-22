@@ -3,7 +3,6 @@ const eventsBody = document.getElementById("events");
 const message = document.getElementById("message");
 let counter = 1;
 
-const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 async function refresh() {
     const state = (await Api.call("GET", "/api/level1/eviction")).data;

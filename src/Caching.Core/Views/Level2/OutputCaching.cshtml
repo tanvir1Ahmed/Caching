@@ -1,0 +1,123 @@
+@{
+    ViewData["Title"] = "Output caching";
+    ViewData["Lesson"] = "l2-output";
+}
+
+<h1>2.4 Output caching</h1>
+<p class="lead">Output caching (.NET 7 and later) is the modern server-side response cache. <b>You</b> decide what is cached, not the client, and you can remove cached responses by tag when data changes.</p>
+
+<h2>Why a second response cache?</h2>
+<p>Response caching follows HTTP rules made for browsers and proxies. That is great for interoperability, but awkward for protecting your own server: clients can bypass it, and you cannot remove an entry when the data changes. Output caching is configured on the server, for the server.</p>
+<div class="card">
+    <table>
+        <thead><tr><th></th><th>Response caching (2.3)</th><th>Output caching (2.4)</th></tr></thead>
+        <tbody>
+            <tr><td><b>Configured by</b></td><td>HTTP headers (<code>Cache-Control</code>)</td><td>Server-side policies in code</td></tr>
+            <tr><td><b>Client can bypass with no-cache</b></td><td>Yes</td><td>No</td></tr>
+            <tr><td><b>Affects browser caching</b></td><td>Yes, sends <code>Cache-Control</code></td><td>No, browsers are not told anything</td></tr>
+            <tr><td><b>Remove entries on demand</b></td><td>No</td><td>Yes, by tag (<code>EvictByTagAsync</code>)</td></tr>
+            <tr><td><b>Many requests for the same missing entry</b></td><td>All run the action</td><td>Only one runs, the others wait for it (resource locking)</td></tr>
+            <tr><td><b>Storage</b></td><td>Memory only</td><td>Memory by default, can be Redis (<code>AddStackExchangeRedisOutputCache</code>)</td></tr>
+            <tr><td><b>Vary by</b></td><td>Query keys, headers</td><td>Query, headers, route values, or any custom value</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<h2>How it is set up in this project</h2>
+<p>A named policy in <code>Program.cs</code>:</p>
+<pre><code>builder.Services.AddOutputCache(options =&gt;
+    options.AddPolicy("Products", policy =&gt; policy
+        .Expire(TimeSpan.FromSeconds(30))
+        .SetVaryByQuery("id")
+        .Tag("products")));
+
+app.UseRouting();
+app.UseOutputCache();</code></pre>
+<p>Used on the endpoint:</p>
+<pre><code>[HttpGet("products")]
+[OutputCache(PolicyName = "Products")]
+public async Task&lt;IActionResult&gt; Get(int id)</code></pre>
+<p>And removed by tag when you want, through <code>IOutputCacheStore</code>:</p>
+<pre><code>await outputCacheStore.EvictByTagAsync("products", cancellationToken);</code></pre>
+
+<h2>Tags: removing a group of responses</h2>
+<p>Every response stored by the <code>Products</code> policy carries the tag <code>products</code>: product 1, product 2, and so on. Evicting the tag removes all of them at once. In a real app you call this right after updating a product, so nobody gets an old price. This is your first taste of <b>invalidation</b>, the subject of Level 6.</p>
+
+<h2>Resource locking: protection against a stampede</h2>
+<p>Imagine a cached response expires while 1,000 users are asking for it. Without protection, all 1,000 requests miss and run the same expensive query at the same moment. This is a <b>cache stampede</b>. Output caching locks by default: the first request runs the action, and the others wait and receive its result. Level 7 shows how to build this yourself.</p>
+
+<h2>Live demo</h2>
+<div class="card">
+    <div class="toolbar">
+        <label class="field">Product (id)
+            <select id="productId">
+                <option value="1">1 - Laptop</option>
+                <option value="2">2 - Mouse</option>
+                <option value="3">3 - Keyboard</option>
+            </select>
+        </label>
+        <label class="check"><input type="checkbox" id="noCache" /> Client sends <code>Cache-Control: no-cache</code></label>
+    </div>
+    <div class="toolbar">
+        <button class="btn primary" id="btnSend">Send request</button>
+        <button class="btn" id="btnParallel">Send 10 requests at the same time</button>
+        <button class="btn danger" id="btnEvict">Evict tag "products"</button>
+        <button class="btn" id="btnPrice">Change price in database</button>
+        <button class="btn" id="btnReset">Reset counters and history</button>
+    </div>
+    <div class="grid grid-3">
+        <div class="card stat"><div class="value" id="sent">0</div><div class="label">Requests sent by the page</div></div>
+        <div class="card stat"><div class="value" id="executed">0</div><div class="label">Times the action ran</div></div>
+        <div class="card stat"><div class="value" id="saved">0</div><div class="label">Answered by the output cache</div></div>
+    </div>
+</div>
+
+<div class="card">
+    <b>History</b>
+    <table>
+        <thead><tr><th>#</th><th>Request</th><th>Result</th><th>Price</th><th>Time</th></tr></thead>
+        <tbody id="history"><tr><td colspan="5" class="muted">No requests yet.</td></tr></tbody>
+    </table>
+</div>
+
+<div class="card">
+    <b>Server event log</b>
+    <div class="events">
+        <table>
+            <thead><tr><th>Time</th><th>Event</th><th>Key</th><th>Detail</th></tr></thead>
+            <tbody id="events"></tbody>
+        </table>
+    </div>
+</div>
+
+<h2>Experiments</h2>
+<ol class="steps">
+    <li><b>Cache it.</b> Click <em>Send request</em> twice. The first runs the action, the second is answered from the output cache.</li>
+    <li><b>Client cannot bypass.</b> Tick <em>Client sends Cache-Control: no-cache</em> and send again. Still served from the cache. Compare this with lesson 2.3.</li>
+    <li><b>Stale data and tags.</b> Click <em>Change price in database</em>, then <em>Send request</em>: the old price, because the response is cached for 30 seconds. Click <em>Evict tag "products"</em> and send again: the action runs and you see the new price.</li>
+    <li><b>Stampede protection.</b> Click <em>Evict tag "products"</em> so the cache is empty, then <em>Send 10 requests at the same time</em>. All ten arrive together, but the action runs only <b>once</b>. The other nine waited for that one result.</li>
+    <li><b>Expiry.</b> Wait 30 seconds and send again. The entry expired, so the action runs.</li>
+</ol>
+
+<h2>What you should take away</h2>
+<div class="callout tip">
+    <strong>Key points</strong>
+    Output caching is the server-side response cache to use in modern ASP.NET Core. You control it with policies, clients cannot bypass it, you can evict by tag when data changes, and it stops stampedes by letting only one request rebuild a missing entry. It does not tell browsers to cache. Combine it with <code>Cache-Control</code> headers if you also want that.
+</div>
+<div class="callout danger">
+    <strong>Common mistakes</strong>
+    Caching responses that depend on the user (by default, requests with authentication are not cached, so do not change that without varying by user). Forgetting to evict after writes. Putting <code>UseOutputCache()</code> before <code>UseRouting()</code>, so attribute-based policies do not apply. With several servers, the default memory store gives each server its own cache, so evicting on one server does not evict on the others. A Redis store fixes that (Level 4).
+</div>
+
+<h2>Read the code</h2>
+<ul class="code-ref">
+    <li><code>Caching.Core/Program.cs</code>: <code>AddOutputCache</code> with the <code>Products</code> policy and <code>UseOutputCache()</code>.</li>
+    <li><code>Caching.Core/Controllers/Api/OutputCacheController.cs</code>: <code>[OutputCache(PolicyName = "Products")]</code> and eviction by tag with <code>IOutputCacheStore</code>.</li>
+    <li><code>Caching.Business/Service/Implementation/HttpCacheService.cs</code>: the work that only runs on a miss.</li>
+</ul>
+
+<div class="next-link"><a class="btn primary" href="/Level2/Cdn">Next: CDNs and static files &rarr;</a></div>
+
+@section Scripts {
+    <script src="~/js/level2/output-caching.js" asp-append-version="true"></script>
+}

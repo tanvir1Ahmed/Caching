@@ -26,7 +26,12 @@
             <a class="nav-item @(lesson == "l1-expiration" ? "active" : "")" href="/Level1/Expiration">1.3 Expiration</a>
             <a class="nav-item @(lesson == "l1-eviction" ? "active" : "")" href="/Level1/Eviction">1.4 Size limits and eviction</a>
 
-            <div class="nav-group muted">Level 2: HTTP caching</div>
+            <div class="nav-group">Level 2: HTTP caching</div>
+            <a class="nav-item @(lesson == "l2-index" ? "active" : "")" href="/Level2">2.1 Cache-Control headers</a>
+            <a class="nav-item @(lesson == "l2-validation" ? "active" : "")" href="/Level2/Validation">2.2 ETag and 304</a>
+            <a class="nav-item @(lesson == "l2-response" ? "active" : "")" href="/Level2/ResponseCaching">2.3 Response caching</a>
+            <a class="nav-item @(lesson == "l2-output" ? "active" : "")" href="/Level2/OutputCaching">2.4 Output caching</a>
+            <a class="nav-item @(lesson == "l2-cdn" ? "active" : "")" href="/Level2/Cdn">2.5 CDNs and static files</a>
             <div class="nav-group muted">Level 3: Caching strategies</div>
             <div class="nav-group muted">Level 4: Distributed caching</div>
             <div class="nav-group muted">Level 5: Redis in depth</div>

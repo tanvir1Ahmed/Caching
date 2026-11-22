@@ -1,0 +1,151 @@
+@{
+    ViewData["Title"] = "Cache-Control headers";
+    ViewData["Lesson"] = "l2-index";
+}
+
+<h1>2.1 HTTP caching: the Cache-Control header</h1>
+<p class="lead">In Level 1 the server cached data. Now the server tells the <b>browser</b> how long it may keep and reuse a response, so many requests never reach the server at all.</p>
+
+<h2>The fastest request is the one you never send</h2>
+<p>Every browser has a built-in HTTP cache. When a response arrives, the browser reads its headers and decides whether to keep a copy and for how long. Next time the page asks for the <b>same URL</b>, the browser may answer from its own copy without touching the network.</p>
+<p>Your server controls this with response headers, mainly <code>Cache-Control</code>. If your API sends no caching headers, the browser has to guess, so always be explicit.</p>
+
+<div class="flow">
+    <div class="flow-step"><b>Page asks for a URL</b><small><code>fetch("/api/...")</code></small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><b>Browser cache has a copy?</b><small>Key = the URL</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step hit"><b>Fresh</b><small>Use the copy. No network at all.</small></div>
+</div>
+<div class="flow">
+    <div class="flow-step miss"><b>Stale</b><small>Its time is up</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><b>Ask the server "has it changed?"</b><small>Send <code>If-None-Match: "etag"</code></small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><b>304 Not Modified</b><small>Reuse the copy, mark it fresh again</small></div>
+    <div class="flow-arrow">or</div>
+    <div class="flow-step"><b>200 OK</b><small>New body replaces the copy</small></div>
+</div>
+<p>Asking "has it changed?" is called <b>revalidation</b> (or a conditional request). It is the topic of lesson 2.2. In this lesson every endpoint also sends an <code>ETag</code>, so you will already see it happen.</p>
+
+<h2>Fresh and stale</h2>
+<p>A cached response is <b>fresh</b> while its age is lower than its freshness lifetime (<code>max-age</code>). A fresh response can be used without asking anyone. Once it is <b>stale</b> it is not thrown away: the browser keeps it and revalidates before using it again.</p>
+
+<h2>The Cache-Control directives</h2>
+<div class="card">
+    <table>
+        <thead><tr><th>Directive</th><th>Meaning</th></tr></thead>
+        <tbody>
+            <tr><td><code>max-age=60</code></td><td>Fresh for 60 seconds. During that time the browser reuses it without asking.</td></tr>
+            <tr><td><code>no-cache</code></td><td>You <b>may</b> store it, but must revalidate with the server <b>every time</b> before using it. The name is misleading: it does not mean "do not cache".</td></tr>
+            <tr><td><code>no-store</code></td><td>Never store it anywhere. Use for sensitive data (bank details, personal documents).</td></tr>
+            <tr><td><code>private</code></td><td>Only the user's own browser may store it. Shared caches (proxies, CDNs, the server's response cache) must not.</td></tr>
+            <tr><td><code>public</code></td><td>Any cache may store it, including shared ones (lesson 2.5).</td></tr>
+            <tr><td><code>s-maxage=300</code></td><td>Like <code>max-age</code>, but only for shared caches such as CDNs. Overrides <code>max-age</code> there.</td></tr>
+            <tr><td><code>must-revalidate</code></td><td>Once stale, it must not be used without a successful revalidation, even if the server is unreachable.</td></tr>
+            <tr><td><code>stale-while-revalidate=30</code></td><td>After it becomes stale, it may still be used for 30 more seconds <b>while</b> the browser refreshes it in the background. The user gets an instant answer.</td></tr>
+            <tr><td><code>stale-if-error=86400</code></td><td>If the server fails, a stale copy may be used for up to a day.</td></tr>
+            <tr><td><code>immutable</code></td><td>The content will never change, so do not even revalidate while fresh. Used for versioned static files (lesson 2.5).</td></tr>
+        </tbody>
+    </table>
+</div>
+<p class="muted">Older headers you may still see: <code>Expires</code> (an absolute date, replaced by <code>max-age</code>) and <code>Pragma: no-cache</code> (HTTP/1.0). When <code>Cache-Control</code> is present, it wins.</p>
+
+<h2>Live demo</h2>
+<p>All four endpoints return the same product with a different <code>Cache-Control</code> header. The page asks the server how many times each endpoint really ran, so it can tell you where each answer came from.</p>
+<div class="card">
+    <div class="toolbar">
+        <label class="field">Product
+            <select id="productId">
+                <option value="1">1 - Laptop</option>
+                <option value="2">2 - Mouse</option>
+                <option value="3">3 - Keyboard</option>
+            </select>
+        </label>
+        <button class="btn" id="btnReset">Reset counters and log</button>
+    </div>
+    <p class="muted">Each card has a <em>New URL</em> button. It adds <code>?v=2</code>, <code>?v=3</code>... to the URL. The browser cache is keyed by the full URL, so a new URL starts with an empty cache, just like clearing the browser cache for that one request.</p>
+</div>
+
+<div class="grid grid-2">
+    @foreach (var (mode, header, explanation) in new[]
+    {
+        ("NoStore", "no-store", "Never stored. Every click goes to the server and gets a full response."),
+        ("NoCache", "no-cache", "Stored, but checked with the server every time. Expect 304s."),
+        ("MaxAge", "private, max-age=15", "Reused without asking for 15 seconds, then revalidated."),
+        ("StaleWhileRevalidate", "private, max-age=10, stale-while-revalidate=30", "Fresh for 10 s, then served instantly while refreshed in the background for 30 s more.")
+    })
+    {
+        <div class="card" data-mode="@mode">
+            <b>@mode</b>
+            <div><code>Cache-Control: @header</code></div>
+            <p class="muted">@explanation</p>
+            <div class="toolbar">
+                <button class="btn primary" data-role="send">Send request</button>
+                <button class="btn" data-role="newUrl">New URL</button>
+            </div>
+            <div class="outcome" data-role="outcome">-</div>
+            <table class="kv">
+                <tbody>
+                    <tr><td>URL</td><td class="mono" data-role="url"></td></tr>
+                    <tr><td>Time in browser</td><td class="mono" data-role="time">-</td></tr>
+                    <tr><td>Response generated at</td><td class="mono" data-role="generated">-</td></tr>
+                    <tr><td>Server ran the action</td><td class="mono" data-role="count">0 times</td></tr>
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+<div class="card">
+    <b>Server event log</b> <span class="muted">(only requests that reached the server appear here)</span>
+    <div class="events">
+        <table>
+            <thead><tr><th>Time</th><th>Event</th><th>Key</th><th>Detail</th></tr></thead>
+            <tbody id="events"></tbody>
+        </table>
+    </div>
+</div>
+
+<div class="callout">
+    <strong>How the page decides the outcome</strong>
+    It reads the server's request counter before and after each request. Counter unchanged: the browser answered from its cache. Counter increased and the body is new: full <b>200</b> response. Counter increased but the body is the old one: the server answered <b>304</b> and the browser reused its copy. JavaScript never sees the 304 itself, because the browser hides it and hands over the cached body as a normal 200. Open DevTools &rarr; Network to see the real status codes and "(disk cache)" / "(memory cache)" labels.
+</div>
+
+<h2>Experiments</h2>
+<ol class="steps">
+    <li><b>no-store.</b> Click <em>Send request</em> on NoStore several times. Every click takes about 800 ms and the counter goes up every time. Nothing is reused.</li>
+    <li><b>no-cache.</b> Click on NoCache several times. The first is a full response. After that the server runs every time (counter goes up, still slow because this demo reads the database to build the ETag), but answers <b>304</b> with no body, and the browser reuses its copy. The "generated at" time stays the same.</li>
+    <li><b>max-age.</b> Click on MaxAge, then click again quickly several times. The counter does <b>not</b> move and the time drops to about 1 ms: the server was never contacted. Wait more than 15 seconds and click again: the browser revalidates (304) and the copy is fresh for another 15 seconds.</li>
+    <li><b>stale-while-revalidate.</b> Click on StaleWhileRevalidate. Within 10 seconds, clicks come from the browser cache. Between 10 and 40 seconds, the click is <b>instant</b> but the counter goes up shortly after: the browser served the stale copy and refreshed it in the background. Click again to see the new "generated at". After more than 40 seconds without a click, the request waits for the server again.</li>
+    <li><b>New URL.</b> On MaxAge, click <em>New URL</em> and send. It is a full response again, because the browser cache is keyed by URL.</li>
+</ol>
+
+<div class="callout warn">
+    <strong>Why the demo uses private</strong>
+    Lesson 2.3 turns on a server-side response cache for the whole app. That cache stores any response marked <code>public</code>. If these endpoints said <code>public</code>, the server would answer from its own cache and this demo could not show you the browser's behavior. <code>private</code> means "only the browser may keep this", which is also the right choice for anything user-specific.
+</div>
+
+<h2>What you should take away</h2>
+<div class="callout tip">
+    <strong>Key points</strong>
+    The browser cache is free, needs no server memory and removes the network completely. <code>max-age</code> controls how long a response is used without asking. After that it is revalidated, not discarded. <code>no-cache</code> means "always revalidate", <code>no-store</code> means "never keep". <code>stale-while-revalidate</code> gives instant answers while refreshing in the background.
+</div>
+<div class="callout danger">
+    <strong>Common mistakes</strong>
+    Marking user-specific responses as <code>public</code>, so a shared cache serves one user's data to another. Thinking <code>no-cache</code> disables caching. Giving long <code>max-age</code> values to data that changes: once a browser has a fresh copy, <b>you cannot take it back</b> until it expires. There is no "remove" for browser caches.
+</div>
+
+<h2>Read the code</h2>
+<ul class="code-ref">
+    <li><code>Caching.Core/Controllers/Api/HttpHeadersController.cs</code>: sets <code>Cache-Control</code> per mode, sends the <code>ETag</code> and returns 304 when it matches.</li>
+    <li><code>Caching.Business/Service/Implementation/HttpCacheService.cs</code>: loads the product, counts executions and builds the ETag.</li>
+    <li><code>Caching.Business/Service/Implementation/RequestCounter.cs</code>: the counter the page uses to detect cache hits.</li>
+    <li><code>wwwroot/js/level2/headers.js</code>: how the page tells browser cache, 304 and 200 apart.</li>
+</ul>
+
+<div class="next-link"><a class="btn primary" href="/Level2/Validation">Next: ETag and 304 &rarr;</a></div>
+
+@section Scripts {
+    <script src="~/js/level2/headers.js" asp-append-version="true"></script>
+}

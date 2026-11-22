@@ -1,0 +1,114 @@
+@{
+    ViewData["Title"] = "Response caching";
+    ViewData["Lesson"] = "l2-response";
+}
+
+<h1>2.3 Response caching middleware</h1>
+<p class="lead">The browser cache helps one user. A server-side response cache stores whole HTTP responses once and serves them to everyone, following the same HTTP header rules you just learned.</p>
+
+<h2>What it is</h2>
+<p>ASP.NET Core's <b>response caching middleware</b> sits in the request pipeline in front of your controllers. When a response is marked cacheable (<code>Cache-Control: public, max-age=...</code>), the middleware keeps a copy in server memory. The next matching request is answered by the middleware directly: <b>your controller action does not run</b>.</p>
+<div class="flow">
+    <div class="flow-step"><b>Request</b><small><code>GET /products?id=1</code></small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><b>Response caching middleware</b><small>Has a fresh stored response?</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step hit"><b>Yes</b><small>Return it, add an <code>Age</code> header. Controller skipped.</small></div>
+    <div class="flow-arrow">/</div>
+    <div class="flow-step miss"><b>No</b><small>Run the controller, store the response if cacheable</small></div>
+</div>
+<p>It behaves like a shared HTTP cache (a proxy) living inside your app. That is why it only stores <code>public</code> responses, never <code>private</code> ones.</p>
+
+<h2>Two separate pieces</h2>
+<div class="grid grid-2">
+    <div class="card">
+        <b>The <code>[ResponseCache]</code> attribute</b>
+        <p class="muted">Only <b>writes headers</b>. On its own it caches nothing on the server.</p>
+        <pre><code>[ResponseCache(Duration = 20,
+    Location = ResponseCacheLocation.Any,
+    VaryByQueryKeys = ["id"])]</code></pre>
+        <p>This produces <code>Cache-Control: public,max-age=20</code>. <code>VaryByQueryKeys</code> only works when the middleware is enabled.</p>
+    </div>
+    <div class="card">
+        <b>The middleware</b>
+        <p class="muted">Actually stores and serves responses.</p>
+        <pre><code>builder.Services.AddResponseCaching();
+app.UseResponseCaching();</code></pre>
+        <p>Without these two lines the attribute only affects browsers and proxies.</p>
+    </div>
+</div>
+
+<h2>When does it refuse to cache?</h2>
+<p>Because it follows HTTP rules, it is strict. A response is <b>not</b> cached when:</p>
+<ul>
+    <li>The request is not <code>GET</code> or <code>HEAD</code>, or the status is not 200.</li>
+    <li>The request has an <code>Authorization</code> header, or the response sets a cookie (<code>Set-Cookie</code>).</li>
+    <li>The response is <code>private</code>, <code>no-store</code> or <code>no-cache</code>, or has <code>Vary: *</code>.</li>
+    <li>The body is larger than the size limit (64 MB per response, 100 MB total by default).</li>
+</ul>
+<p>And the most surprising rule: <b>the client can bypass it</b>. If the request contains <code>Cache-Control: no-cache</code> (a hard refresh does this), the middleware will not answer from its cache. Any user, or an attacker, can therefore force your expensive action to run.</p>
+
+<h2>Live demo</h2>
+<p>The endpoint has <code>[ResponseCache(Duration = 20, VaryByQueryKeys = ["id"])]</code>. Every request adds a random <code>_=...</code> value to the URL. That makes every URL new for the <b>browser</b> cache, so the browser never answers. The server cache only varies by <code>id</code>, so it ignores <code>_</code>. Whatever is cached here is the server's doing.</p>
+<div class="card">
+    <div class="toolbar">
+        <label class="field">Product (id)
+            <select id="productId">
+                <option value="1">1 - Laptop</option>
+                <option value="2">2 - Mouse</option>
+                <option value="3">3 - Keyboard</option>
+            </select>
+        </label>
+        <label class="check"><input type="checkbox" id="noCache" /> Client sends <code>Cache-Control: no-cache</code></label>
+    </div>
+    <div class="toolbar">
+        <button class="btn primary" id="btnSend">Send request</button>
+        <button class="btn" id="btnFive">Send 5 requests</button>
+        <button class="btn" id="btnReset">Reset counters and history</button>
+    </div>
+    <div class="grid grid-3">
+        <div class="card stat"><div class="value" id="sent">0</div><div class="label">Requests sent by the page</div></div>
+        <div class="card stat"><div class="value" id="executed">0</div><div class="label">Times the action ran</div></div>
+        <div class="card stat"><div class="value" id="saved">0</div><div class="label">Answered by the server cache</div></div>
+    </div>
+</div>
+
+<div class="card">
+    <b>History</b>
+    <table>
+        <thead><tr><th>#</th><th>id</th><th>Client header</th><th>Result</th><th>Age header</th><th>Time</th></tr></thead>
+        <tbody id="history"><tr><td colspan="6" class="muted">No requests yet.</td></tr></tbody>
+    </table>
+</div>
+
+<h2>Experiments</h2>
+<ol class="steps">
+    <li><b>First request.</b> Click <em>Send request</em>. The action runs (about 800 ms) and the response is stored.</li>
+    <li><b>Server cache hits.</b> Click <em>Send 5 requests</em>. All five come back in a few milliseconds, the action counter does not move, and each response carries an <code>Age</code> header saying how many seconds old the stored copy is.</li>
+    <li><b>Vary by id.</b> Switch to product 2 and send. It runs again, because <code>id</code> is part of the cache key. Product 1 is still cached.</li>
+    <li><b>Client bypass.</b> Tick <em>Client sends Cache-Control: no-cache</em> and send five requests. The action runs <b>every time</b>. The client decided to skip your server cache.</li>
+    <li><b>Expiry.</b> Untick the box, wait 20 seconds and send again. The stored copy has expired, so the action runs once and a new copy is stored.</li>
+</ol>
+
+<h2>What you should take away</h2>
+<div class="callout tip">
+    <strong>Key points</strong>
+    Response caching stores whole responses and skips your controller completely on a hit. It obeys HTTP headers, so it only stores <code>public</code> responses and it lets clients bypass it with <code>no-cache</code>. It is a good fit for public, anonymous GET endpoints where you also want browsers and CDNs to cache.
+</div>
+<div class="callout danger">
+    <strong>Common mistakes</strong>
+    Adding <code>[ResponseCache]</code> and expecting server caching without <code>UseResponseCaching()</code>. Expecting it to work for logged-in users (requests with <code>Authorization</code> are never cached). Relying on it to protect an expensive endpoint, even though any client can bypass it. Because of these limits, ASP.NET Core added output caching, the next lesson.
+</div>
+
+<h2>Read the code</h2>
+<ul class="code-ref">
+    <li><code>Caching.Core/Controllers/Api/ResponseCacheController.cs</code>: the <code>[ResponseCache]</code> attribute.</li>
+    <li><code>Caching.Core/Program.cs</code>: <code>AddResponseCaching()</code> and <code>UseResponseCaching()</code>, and where it sits in the pipeline.</li>
+    <li><code>wwwroot/js/level2/response-caching.js</code>: the random <code>_</code> parameter and the no-cache header.</li>
+</ul>
+
+<div class="next-link"><a class="btn primary" href="/Level2/OutputCaching">Next: Output caching &rarr;</a></div>
+
+@section Scripts {
+    <script src="~/js/level2/response-caching.js" asp-append-version="true"></script>
+}

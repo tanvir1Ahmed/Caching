@@ -9,7 +9,8 @@ public static class ProductMapper
     {
         Id = product.Id,
         Name = product.Name,
-        Price = product.Price
+        Price = product.Price,
+        UpdatedAt = DateTime.SpecifyKind(product.UpdatedAt, DateTimeKind.Utc)
     };
 
     public static Product ToEntity(this CreateProductDto dto) => new()
