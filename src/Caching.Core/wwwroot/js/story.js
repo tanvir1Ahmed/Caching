@@ -14,6 +14,7 @@ const StoryPlayer = (() => {
         muted: "var(--muted)"
     };
     const players = new Map();
+    let recordings = {};
     const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
     const list = value => value === undefined ? [] : Array.isArray(value) && Array.isArray(value[0]) ? value : [value];
 
@@ -27,6 +28,7 @@ const StoryPlayer = (() => {
     class Player {
         constructor(container, scene) {
             this.container = container;
+            this.key = container.dataset.story;
             this.scene = scene;
             this.index = 0;
             this.playing = false;
@@ -109,7 +111,7 @@ const StoryPlayer = (() => {
                 this.play();
             });
             this.narrateBox.addEventListener("change", () => {
-                if (!this.narrateBox.checked && window.speechSynthesis) speechSynthesis.cancel();
+                if (!this.narrateBox.checked) this.stopVoice();
             });
         }
 
@@ -150,7 +152,7 @@ const StoryPlayer = (() => {
         pause() {
             this.playing = false;
             this.token++;
-            if (window.speechSynthesis) speechSynthesis.cancel();
+            this.stopVoice();
             this.playButton.innerHTML = "&#9654; Play";
         }
 
@@ -234,8 +236,30 @@ const StoryPlayer = (() => {
             this.realBanner.hidden = false;
         }
 
+        stopVoice() {
+            if (window.speechSynthesis) speechSynthesis.cancel();
+            if (this.audio) {
+                this.audio.pause();
+                this.audio = null;
+            }
+        }
+
         speak(text) {
-            if (!this.narrateBox.checked || !window.speechSynthesis) return Promise.resolve();
+            if (!this.narrateBox.checked) return Promise.resolve();
+            this.stopVoice();
+            const step = this.index + 1;
+            if (recordings[this.key]?.includes(step)) {
+                return new Promise(resolve => {
+                    const audio = new Audio(`/audio/story/${this.key}-${step}.mp3`);
+                    this.audio = audio;
+                    audio.onended = resolve;
+                    audio.onerror = resolve;
+                    audio.onpause = resolve;
+                    audio.play().catch(resolve);
+                    setTimeout(resolve, 30000);
+                });
+            }
+            if (!window.speechSynthesis) return Promise.resolve();
             return new Promise(resolve => {
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.rate = 1.02;
@@ -347,6 +371,10 @@ const StoryPlayer = (() => {
         mountAll: () => {
             mountAll();
             animateFlows();
+            fetch("/audio/story/recordings.json", { cache: "no-cache" })
+                .then(response => response.ok ? response.json() : {})
+                .then(data => recordings = data)
+                .catch(() => { });
         },
         trace: (key, name) => players.get(key)?.trace(name)
     };
