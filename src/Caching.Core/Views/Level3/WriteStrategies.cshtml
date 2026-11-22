@@ -6,6 +6,12 @@
 <h1>3.2 Write-through and write-around</h1>
 <p class="lead">When data changes, the cache must not keep serving the old value. These two strategies handle writes in opposite ways: update the cache, or get out of the way.</p>
 
+<div class="story" data-story="3.2"></div>
+
+
+<details class="deep">
+<summary>&#128214; Want to understand it deeply? Read the full explanation</summary>
+
 <h2>Write-through</h2>
 <p>Every write updates the database <b>and</b> the cache in the same operation. The cache always holds the latest value, and the next read is a hit.</p>
 <div class="flow">
@@ -52,7 +58,9 @@ cache.Remove(key);</code></pre>
     Many teams prefer write-around ("delete on write") even when reads follow writes. Removing a key is simpler and safer than building the new cached value correctly in every write path. If you update the cache, the value you write must be exactly what a fresh read would produce.
 </div>
 
-<h2>Live demo</h2>
+</details>
+
+<h2><span class="try-it">Try it</span>Live demo</h2>
 <p>Both cards use the same product in the same database, but separate cache keys. Writes take about 800 ms, like the reads.</p>
 <div class="card">
     <div class="toolbar">
@@ -89,7 +97,7 @@ cache.Remove(key);</code></pre>
     </div>
 </div>
 
-<h2>Experiments</h2>
+<h2>Experiments: do these in order</h2>
 <ol class="steps">
     <li><b>Warm both caches.</b> Click <em>Read</em> on both cards twice. Both end with a cache hit.</li>
     <li><b>Write-through.</b> Click <em>Update price</em> on the write-through card, then <em>Read</em>. It is a <b>hit</b> with the new price: the write already put it in the cache.</li>

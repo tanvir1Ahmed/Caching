@@ -6,6 +6,12 @@
 <h1>2.2 Validation: ETag, Last-Modified and 304 Not Modified</h1>
 <p class="lead">When a cached copy is stale, the browser does not download everything again. It asks "has this changed since my copy?", and if not, the server answers with a tiny 304 response.</p>
 
+<div class="story" data-story="2.2"></div>
+
+
+<details class="deep">
+<summary>&#128214; Want to understand it deeply? Read the full explanation</summary>
+
 <h2>Validators: a fingerprint for a response</h2>
 <p>A <b>validator</b> is a small value that identifies one version of a response. The server sends it with the response, the browser stores it with its copy, and sends it back later to ask whether its copy is still current.</p>
 <div class="grid grid-2">
@@ -43,7 +49,9 @@ Request:  If-Modified-Since: Thu, 01 Jan 2026 00:00:00 GMT</code></pre>
     <li><b>ETags also protect writes.</b> <code>If-Match: "etag"</code> on a PUT means "only update if nobody changed it since I read it" (412 Precondition Failed otherwise). This is optimistic concurrency, built on the same idea.</li>
 </ul>
 
-<h2>Live demo</h2>
+</details>
+
+<h2><span class="try-it">Try it</span>Live demo</h2>
 <p>This endpoint sends <code>Cache-Control: no-cache</code>, an <code>ETag</code> and a <code>Last-Modified</code> header. The buttons send the requests <b>by hand</b> with the browser cache turned off, so you can see the real 304 responses.</p>
 <div class="card">
     <div class="toolbar">
@@ -104,7 +112,7 @@ Request:  If-Modified-Since: Thu, 01 Jan 2026 00:00:00 GMT</code></pre>
     </div>
 </div>
 
-<h2>Experiments</h2>
+<h2>Experiments: do these in order</h2>
 <ol class="steps">
     <li><b>Get a validator.</b> Click <em>Normal request</em>. You get <span class="status-200">200</span> with a body of a few hundred bytes. The ETag and Last-Modified are saved.</li>
     <li><b>Ask with the ETag.</b> Click <em>Send If-None-Match</em>. You get <span class="status-304">304</span> with a body of <b>0 bytes</b>.</li>

@@ -11,6 +11,7 @@ function show(mode, result) {
     history.unshift({ mode, source: data.source, ms: data.elapsedMs, price });
 
     document.getElementById("lastSource").innerHTML = badge(data.source ?? "-");
+    if (mode === "Cached") StoryPlayer.trace("1.2", data.source);
     document.getElementById("lastTime").textContent = formatMs(data.elapsedMs);
     document.getElementById("lastPrice").textContent = price;
     document.getElementById("lastInfo").textContent = data.key

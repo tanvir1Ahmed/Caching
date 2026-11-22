@@ -6,6 +6,12 @@
 <h1>7.5 Monitoring caches and choosing technologies</h1>
 <p class="lead">A cache you cannot measure is a cache you cannot trust. This last lesson covers what to monitor, shows a live dashboard of this app, compares other caching technologies, and ends with a summary of the whole course.</p>
 
+<div class="story" data-story="7.5"></div>
+
+
+<details class="deep">
+<summary>&#128214; Want to understand it deeply? Read the full explanation</summary>
+
 <h2>What to measure</h2>
 <div class="card">
     <table>
@@ -34,7 +40,9 @@ private static readonly Counter&lt;long&gt; EventCounter =
 
 EventCounter.Add(1, new("type", type), new("level", level));</code></pre>
 
-<h2>Live dashboard</h2>
+</details>
+
+<h2><span class="try-it">Try it</span>Live dashboard</h2>
 <div class="toolbar">
     <button class="btn primary" id="btnRefresh">Refresh</button>
     <label class="check"><input type="checkbox" id="auto" checked /> Refresh every 3 seconds</label>
@@ -56,6 +64,9 @@ EventCounter.Add(1, new("type", type), new("level", level));</code></pre>
     </div>
 </div>
 <p class="muted">Use demos on other pages and come back: the numbers grow. Note how Hit and Miss events relate to the hit ratios.</p>
+
+<details class="deep">
+<summary>&#128214; More details (optional)</summary>
 
 <h2>Other caching technologies</h2>
 <div class="card">
@@ -79,6 +90,8 @@ EventCounter.Add(1, new("type", type), new("level", level));</code></pre>
     options.UseMemoryCacheProvider().CacheAllQueries(CacheExpirationMode.Absolute, TimeSpan.FromMinutes(5)));
 
 var products = await context.Products.Where(p =&gt; p.Price &gt; 100).Cacheable().ToListAsync();</code></pre>
+
+</details>
 
 <h2>The whole course on one card</h2>
 <div class="card">

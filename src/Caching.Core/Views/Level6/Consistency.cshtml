@@ -6,6 +6,12 @@
 <h1>6.2 Race conditions and consistency</h1>
 <p class="lead">Even with perfect "delete on write" code, a cache can end up holding old data forever. This lesson reproduces the classic cache-aside race and shows two ways to fix it.</p>
 
+<div class="story" data-story="6.2"></div>
+
+
+<details class="deep">
+<summary>&#128214; Want to understand it deeply? Read the full explanation</summary>
+
 <h2>The race, step by step</h2>
 <p>Two requests for the same product run at the same time: a <b>reader</b> with a cache miss and a <b>writer</b> changing the price.</p>
 <div class="card">
@@ -35,7 +41,9 @@
     </table>
 </div>
 
-<h2>Live demo</h2>
+</details>
+
+<h2><span class="try-it">Try it</span>Live demo</h2>
 <p>The server runs the reader and the writer at the same time with carefully chosen delays, so the race happens every time. Each run takes about 4 seconds and really changes the product's price.</p>
 <div class="card">
     <div class="toolbar">
@@ -60,12 +68,15 @@
     </table>
 </div>
 
-<h2>Experiments</h2>
+<h2>Experiments: do these in order</h2>
 <ol class="steps">
     <li><b>See the bug.</b> Click <em>Run: plain delete on write</em>. The writer deletes at about 1.7 s, the reader writes the old price at about 2.3 s. Result: the cache holds the old price and the database holds the new one. <span class="badge stale">Stale</span></li>
     <li><b>Version check.</b> Click <em>Run: with version check</em>. The reader notices the version changed while it was busy and skips its cache write. The cache stays empty, and the next read loads the new price. <span class="badge fresh">Fresh</span></li>
     <li><b>Double delete.</b> Click <em>Run: with delayed double delete</em>. The reader still writes the old price at 2.3 s, but the writer's second delete at about 2.9 s removes it. Stale for about 0.6 seconds instead of until the TTL.</li>
 </ol>
+
+<details class="deep">
+<summary>&#128214; More details (optional)</summary>
 
 <h2>Consistency models in plain words</h2>
 <div class="grid grid-2">
@@ -79,6 +90,8 @@
     </div>
 </div>
 <p><b>Read-your-writes</b> is a useful middle ground: the user who changed something must see their change right away, even if others see it a few seconds later. Write-through for that user's data, or bypassing the cache right after their write, gives you this.</p>
+
+</details>
 
 <h2>What you should take away</h2>
 <div class="callout tip">

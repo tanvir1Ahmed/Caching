@@ -84,14 +84,14 @@ src/
 - Level 2 demos detect cache hits with `IRequestCounter` (`api/level2/counters`): the counter only increases when the controller action really runs.
 
 ## Portal lesson page format
-Every lesson view follows the same structure:
+The user is a beginner and wants visuals first, little text up front. Every lesson view follows this order:
 1. Title and one-sentence lead
-2. Concept explanation in plain language (cards, flow diagrams with `.flow`, tables)
-3. Live demo calling the API, with results, timings and an event log (`ICacheEventLog`, filtered by key prefix)
-4. Numbered experiments for the user to run
-5. Key takeaways and common mistakes (`.callout`)
-6. "Read the code" list of the files to study
-7. Link to the next lesson
+2. An animated story: `<div class="story" data-story="N.M"></div>`. Scenes live in `wwwroot/js/stories/levelN.js` as `Stories["N.M"] = { title, height, nodes, links, steps, traces }` and are played by `wwwroot/js/story.js` (Play/Back/Next/Replay, autoplay on scroll, optional speech "Read aloud"). Each step has one short plain-language sentence (`say`) plus actions: `move` (packets, parallel when an array of arrays), `before`/`then` (sequential moves), `flash` (badge), `set` (node subtitle), `hi`, `dim`/`undim`, `clock`, `after`.
+3. The long explanation inside `<details class="deep">` ("Read the full explanation")
+4. `<h2><span class="try-it">Try it</span>Live demo</h2>`: calls the API, shows results, timings and an event log (`ICacheEventLog`, filtered by key prefix). Where the scene defines `traces`, the demo calls `StoryPlayer.trace("N.M", source)` so the diagram replays the path the real request took.
+5. "Experiments: do these in order", then extra theory in a second `details.deep`
+6. Key takeaways and common mistakes (`.callout`)
+7. "Read the code" list of the files to study, and a link to the next lesson
 
 ## Redis
 - Connection string key: `ConnectionStrings:Redis`, in StackExchange.Redis format (`host:port,user=...,password=...,abortConnect=false`), not the `redis://` URI format.

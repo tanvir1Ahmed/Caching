@@ -6,6 +6,12 @@
 <h1>2.1 HTTP caching: the Cache-Control header</h1>
 <p class="lead">In Level 1 the server cached data. Now the server tells the <b>browser</b> how long it may keep and reuse a response, so many requests never reach the server at all.</p>
 
+<div class="story" data-story="2.1"></div>
+
+
+<details class="deep">
+<summary>&#128214; Want to understand it deeply? Read the full explanation</summary>
+
 <h2>The fastest request is the one you never send</h2>
 <p>Every browser has a built-in HTTP cache. When a response arrives, the browser reads its headers and decides whether to keep a copy and for how long. Next time the page asks for the <b>same URL</b>, the browser may answer from its own copy without touching the network.</p>
 <p>Your server controls this with response headers, mainly <code>Cache-Control</code>. If your API sends no caching headers, the browser has to guess, so always be explicit.</p>
@@ -51,7 +57,9 @@
 </div>
 <p class="muted">Older headers you may still see: <code>Expires</code> (an absolute date, replaced by <code>max-age</code>) and <code>Pragma: no-cache</code> (HTTP/1.0). When <code>Cache-Control</code> is present, it wins.</p>
 
-<h2>Live demo</h2>
+</details>
+
+<h2><span class="try-it">Try it</span>Live demo</h2>
 <p>All four endpoints return the same product with a different <code>Cache-Control</code> header. The page asks the server how many times each endpoint really ran, so it can tell you where each answer came from.</p>
 <div class="card">
     <div class="toolbar">
@@ -112,7 +120,7 @@
     It reads the server's request counter before and after each request. Counter unchanged: the browser answered from its cache. Counter increased and the body is new: full <b>200</b> response. Counter increased but the body is the old one: the server answered <b>304</b> and the browser reused its copy. JavaScript never sees the 304 itself, because the browser hides it and hands over the cached body as a normal 200. Open DevTools &rarr; Network to see the real status codes and "(disk cache)" / "(memory cache)" labels.
 </div>
 
-<h2>Experiments</h2>
+<h2>Experiments: do these in order</h2>
 <ol class="steps">
     <li><b>no-store.</b> Click <em>Send request</em> on NoStore several times. Every click takes about 800 ms and the counter goes up every time. Nothing is reused.</li>
     <li><b>no-cache.</b> Click on NoCache several times. The first is a full response. After that the server runs every time (counter goes up, still slow because this demo reads the database to build the ETag), but answers <b>304</b> with no body, and the browser reuses its copy. The "generated at" time stays the same.</li>

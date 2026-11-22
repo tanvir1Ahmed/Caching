@@ -6,6 +6,12 @@
 <h1>1.2 Your first cache: IMemoryCache and cache-aside</h1>
 <p class="lead">You will compare reading a product straight from the database with reading it through an in-memory cache, and then break the cache on purpose to see its weaknesses.</p>
 
+<div class="story" data-story="1.2"></div>
+
+
+<details class="deep">
+<summary>&#128214; Want to understand it deeply? Read the full explanation</summary>
+
 <h2>What is IMemoryCache?</h2>
 <p><code>IMemoryCache</code> is the cache built into .NET. It is a thread-safe dictionary that lives <b>inside your application's memory</b> and supports expiration and size limits. You turn it on with <code>services.AddMemoryCache()</code> and inject it wherever you need it.</p>
 <div class="grid grid-2">
@@ -57,7 +63,9 @@ cache.Set(key, value, Duration);
 return new CacheResultDto&lt;ProductDto&gt; { Data = value.Value, Source = "Database" };</code></pre>
 <p class="muted"><code>CachedValue&lt;T&gt;</code> is a small wrapper that remembers when the value was cached and when it expires, only so this portal can show it to you. In normal code you would usually cache the DTO directly.</p>
 
-<h2>Live demo</h2>
+</details>
+
+<h2><span class="try-it">Try it</span>Live demo</h2>
 <div class="card">
     <div class="toolbar">
         <label class="field">Product
@@ -123,7 +131,7 @@ return new CacheResultDto&lt;ProductDto&gt; { Data = value.Value, Source = "Data
     </div>
 </div>
 
-<h2>Experiments</h2>
+<h2>Experiments: do these in order</h2>
 <ol class="steps">
     <li><b>Feel the database.</b> Click <em>Get without cache</em> three times. Every request takes about 800 ms because every request goes to the database.</li>
     <li><b>First miss.</b> Click <em>Get with cache</em>. The first time is a <span class="badge miss">Miss</span>: it is just as slow as the database, plus a tiny bit to store the value. The cache does not make the first request faster.</li>

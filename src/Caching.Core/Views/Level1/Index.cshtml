@@ -6,6 +6,12 @@
 <h1>1.1 What is caching?</h1>
 <p class="lead">A cache is a small, fast store that keeps a copy of data you have already fetched or computed, so the next time you need it you skip the slow work.</p>
 
+<div class="story" data-story="1.1"></div>
+
+
+<details class="deep">
+<summary>&#128214; Want to understand it deeply? Read the full explanation</summary>
+
 <h2>The idea in one picture</h2>
 <p>Imagine you are writing an essay and need facts from a library across town. The first time, you travel to the library (slow). You write the facts in a notebook on your desk. Next time you need the same fact you read your notebook (fast). Your notebook is a cache.</p>
 <div class="flow">
@@ -74,7 +80,9 @@
     <div class="flow-step miss"><b>Database</b><small>Has its own buffer cache too</small></div>
 </div>
 
-<h2>Hit ratio decides everything</h2>
+</details>
+
+<h2><span class="try-it">Try it</span>Hit ratio decides everything</h2>
 <p>The average time of a request is:</p>
 <p class="card mono">average = hitRatio &times; hitTime + (1 &minus; hitRatio) &times; missTime</p>
 <p>Move the sliders and see how strongly the hit ratio controls performance.</p>
@@ -94,6 +102,9 @@
     <strong>Notice</strong>
     Going from 90% to 99% hit ratio cuts the average time by about 10 times, because the misses are what cost you. A cache is only worth it when the same data is read many times.
 </div>
+
+<details class="deep">
+<summary>&#128214; More details (optional)</summary>
 
 <h2>When should you cache?</h2>
 <div class="grid grid-2">
@@ -140,6 +151,8 @@
     <strong>The famous quote</strong>
     "There are only two hard things in computer science: cache invalidation and naming things." Keep it in mind. Putting data into a cache is easy. Knowing when it is no longer correct is the hard part, and Levels 3 and 6 are about exactly that.
 </div>
+
+</details>
 
 <div class="next-link"><a class="btn primary" href="/Level1/FirstCache">Next: Your first cache &rarr;</a></div>
 

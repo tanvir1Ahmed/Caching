@@ -6,6 +6,12 @@
 <h1>5.1 Redis: more than a key-value cache</h1>
 <p class="lead">Redis is an in-memory data structure server. Besides plain strings it has hashes, lists, sets and sorted sets, each with fast atomic commands. Picking the right type turns many hard problems into one command.</p>
 
+<div class="story" data-story="5.1"></div>
+
+
+<details class="deep">
+<summary>&#128214; Want to understand it deeply? Read the full explanation</summary>
+
 <h2>What Redis is</h2>
 <ul>
     <li><b>In memory:</b> all data lives in RAM, so most commands take microseconds on the server. Network time dominates.</li>
@@ -29,7 +35,9 @@
 </div>
 <p class="muted">Redis also has streams (durable message logs), bitmaps, HyperLogLog (approximate unique counts in 12 KB), geospatial indexes, and with modules JSON and vector search.</p>
 
-<h2>Live demo: Redis playground</h2>
+</details>
+
+<h2><span class="try-it">Try it</span>Live demo: Redis playground</h2>
 <p>Each button runs real Redis commands through <code>IRedisRepository</code>. The exact command is shown with the result. All keys get the <code>caching-academy:</code> prefix in Redis; it is hidden here.</p>
 <div id="redisStatus"></div>
 <div class="card">
@@ -85,7 +93,7 @@
     </div>
 </div>
 
-<h2>Experiments</h2>
+<h2>Experiments: do these in order</h2>
 <ol class="steps">
     <li><b>Strings and TTL.</b> Click <em>SET greeting</em>, then <em>GET greeting</em>. Watch its TTL count down in the key list. After 60 seconds GET returns <code>(nil)</code>.</li>
     <li><b>Atomic counters.</b> Click <em>INCR page-views</em> several times. No read-modify-write in your code, no race conditions, even with many servers.</li>

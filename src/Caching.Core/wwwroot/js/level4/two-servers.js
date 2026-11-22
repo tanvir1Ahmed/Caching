@@ -12,6 +12,7 @@ document.querySelectorAll("[data-server]").forEach(card => {
     card.querySelector("[data-role=read]").addEventListener("click", e => withBusy(e.target, async () => {
         const result = await Api.call("GET", `/api/level4/two-servers/${server}/products/${productSelect.value}?distributed=${modeSelect.value}`);
         card.querySelector("[data-role=result]").innerHTML = resultHtml(result.data);
+        StoryPlayer.trace("4.1", `${modeSelect.value === "true" ? "shared" : "local"}-${server}`);
         await renderEvents(prefixes, eventsBody);
     }));
 

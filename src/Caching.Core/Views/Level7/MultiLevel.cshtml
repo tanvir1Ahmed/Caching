@@ -6,6 +6,12 @@
 <h1>7.4 Hot keys and multi-level caching</h1>
 <p class="lead">A few keys often get a huge share of all traffic. A local L1 cache in every server in front of Redis absorbs that load, and Redis Pub/Sub keeps the L1 copies correct.</p>
 
+<div class="story" data-story="7.4"></div>
+
+
+<details class="deep">
+<summary>&#128214; Want to understand it deeply? Read the full explanation</summary>
+
 <h2>The hot key problem</h2>
 <p>A flash sale product, the home page configuration, a celebrity's profile: one key read 50,000 times per second. In a Redis cluster, a key lives on exactly one node, so that node gets all the load and its network or CPU becomes the bottleneck, while other nodes sit idle. Even on one Redis, 50,000 network round trips per second cost a lot.</p>
 <div class="card">
@@ -40,7 +46,9 @@
 </div>
 <p>In this project the writing server does not even remove its own L1 entry directly: it receives its own broadcast like everyone else. If Redis is down, it falls back to removing only its local copy, and other servers stay stale until their short L1 TTL ends. That is why L1 TTLs are kept short. HybridCache (lesson 4.4) gives you L1 + L2, but leaves this cross-server L1 invalidation to you.</p>
 
-<h2>Live demo</h2>
+</details>
+
+<h2><span class="try-it">Try it</span>Live demo</h2>
 <div id="redisStatus"></div>
 <div class="card">
     <div class="toolbar">
@@ -69,7 +77,7 @@
     </div>
 </div>
 
-<h2>Experiments</h2>
+<h2>Experiments: do these in order</h2>
 <ol class="steps">
     <li><b>Three levels.</b> Click <em>Get</em> twice: database, then L1 in microseconds.</li>
     <li><b>A new server.</b> Click <em>Clear L1</em>, then <em>Get</em>: an L2 hit from Redis, copied into L1. A freshly started server never hits the database for data another server already loaded.</li>

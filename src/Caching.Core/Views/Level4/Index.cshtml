@@ -6,6 +6,12 @@
 <h1>4.1 Why distributed caching?</h1>
 <p class="lead">An in-memory cache works perfectly on one server. As soon as you run two or more copies of your app, each copy has its own cache, and they start to disagree.</p>
 
+<div class="story" data-story="4.1"></div>
+
+
+<details class="deep">
+<summary>&#128214; Want to understand it deeply? Read the full explanation</summary>
+
 <h2>The problem with many servers</h2>
 <p>Production apps usually run several instances behind a load balancer, for capacity and so that one crash does not take the site down. Each instance has its own <code>IMemoryCache</code>:</p>
 <div class="flow">
@@ -48,7 +54,9 @@
 </div>
 <p>Lesson 4.4 shows how to get the best of both with a two-level cache.</p>
 
-<h2>Live demo: two servers in one app</h2>
+</details>
+
+<h2><span class="try-it">Try it</span>Live demo: two servers in one app</h2>
 <p>This app runs as a single process, so the demo <b>simulates</b> two servers: server A and server B each have their own private <code>MemoryCache</code>, and both share the app's <code>IDistributedCache</code>.</p>
 <div id="redisStatus"></div>
 <div class="card">
@@ -90,7 +98,7 @@
     </div>
 </div>
 
-<h2>Experiments</h2>
+<h2>Experiments: do these in order</h2>
 <ol class="steps">
     <li><b>Own memory caches.</b> Keep mode "Each server's own memory cache". Read through A and through B. Both miss once, then hit. Note that the database was read <b>twice</b> for the same product.</li>
     <li><b>Break consistency.</b> Update the price through server A, then read through A: new price. Read through B: <b>old price</b>. Server B never heard about the change. This is the bug users report as "the price keeps changing when I refresh".</li>

@@ -20,6 +20,7 @@ function addHistory(action, source, ms) {
 async function get(skipLocal) {
     const result = (await Api.call("GET", `/api/level4/hybrid/products/${productSelect.value}?skipLocal=${skipLocal}`)).data;
     document.getElementById("result").innerHTML = resultHtml(result);
+    StoryPlayer.trace("4.4", result.source);
     addHistory(`Get product ${productSelect.value}${skipLocal ? " (skip L1)" : ""}`, badge(result.source), result.elapsedMs);
     await renderEvents(prefix, eventsBody);
 }

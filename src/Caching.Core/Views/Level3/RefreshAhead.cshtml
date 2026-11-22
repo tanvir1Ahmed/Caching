@@ -6,6 +6,12 @@
 <h1>3.4 Refresh-ahead</h1>
 <p class="lead">With normal expiration, some unlucky user always pays for the reload. Refresh-ahead reloads popular entries in the background shortly before they expire, so users keep getting fast hits.</p>
 
+<div class="story" data-story="3.4"></div>
+
+
+<details class="deep">
+<summary>&#128214; Want to understand it deeply? Read the full explanation</summary>
+
 <h2>The problem it solves</h2>
 <p>With cache-aside and a 20-second TTL, the entry disappears at second 20 and the next user waits for the database. For a page that gets 100 requests per second, that is a visible spike in latency every 20 seconds, and a burst of database load if many requests miss at once.</p>
 
@@ -26,7 +32,9 @@
     This is the same idea as the HTTP <code>stale-while-revalidate</code> from lesson 2.1, but inside your application. Refresh-ahead starts before expiry, so the value is never stale. Stale-while-revalidate serves a value that has already expired.
 </div>
 
-<h2>Live demo</h2>
+</details>
+
+<h2><span class="try-it">Try it</span>Live demo</h2>
 <p>Both cards read the same product with the same 20-second TTL. Only the right card refreshes ahead.</p>
 <div class="card">
     <div class="toolbar">
@@ -62,13 +70,16 @@
     </div>
 </div>
 
-<h2>Experiments</h2>
+<h2>Experiments: do these in order</h2>
 <ol class="steps">
     <li><b>Simulate steady traffic.</b> Tick <em>Read both every 3 seconds automatically</em> and watch for a minute.</li>
     <li><b>Plain expiration.</b> On the left, the age climbs to 20 s, then one read is slow (800 ms) and the age restarts. The slow-read counter keeps growing.</li>
     <li><b>Refresh-ahead.</b> On the right, after 15 s a read logs "started a background refresh", shortly followed by <span class="badge refreshed">Refreshed</span>, and the age restarts without any slow read. Only the very first read was slow.</li>
     <li><b>Unpopular data.</b> Untick the box and wait 25 s. Refresh-ahead only refreshes on reads, so an entry nobody reads expires normally. That is a feature: it does not waste work on cold data.</li>
 </ol>
+
+<details class="deep">
+<summary>&#128214; More details (optional)</summary>
 
 <h2>Choosing a strategy</h2>
 <div class="card">
@@ -84,6 +95,8 @@
         </tbody>
     </table>
 </div>
+
+</details>
 
 <h2>What you should take away</h2>
 <div class="callout tip">

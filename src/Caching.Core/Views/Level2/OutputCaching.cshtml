@@ -6,6 +6,12 @@
 <h1>2.4 Output caching</h1>
 <p class="lead">Output caching (.NET 7 and later) is the modern server-side response cache. <b>You</b> decide what is cached, not the client, and you can remove cached responses by tag when data changes.</p>
 
+<div class="story" data-story="2.4"></div>
+
+
+<details class="deep">
+<summary>&#128214; Want to understand it deeply? Read the full explanation</summary>
+
 <h2>Why a second response cache?</h2>
 <p>Response caching follows HTTP rules made for browsers and proxies. That is great for interoperability, but awkward for protecting your own server: clients can bypass it, and you cannot remove an entry when the data changes. Output caching is configured on the server, for the server.</p>
 <div class="card">
@@ -46,7 +52,9 @@ public async Task&lt;IActionResult&gt; Get(int id)</code></pre>
 <h2>Resource locking: protection against a stampede</h2>
 <p>Imagine a cached response expires while 1,000 users are asking for it. Without protection, all 1,000 requests miss and run the same expensive query at the same moment. This is a <b>cache stampede</b>. Output caching locks by default: the first request runs the action, and the others wait and receive its result. Level 7 shows how to build this yourself.</p>
 
-<h2>Live demo</h2>
+</details>
+
+<h2><span class="try-it">Try it</span>Live demo</h2>
 <div class="card">
     <div class="toolbar">
         <label class="field">Product (id)
@@ -90,7 +98,7 @@ public async Task&lt;IActionResult&gt; Get(int id)</code></pre>
     </div>
 </div>
 
-<h2>Experiments</h2>
+<h2>Experiments: do these in order</h2>
 <ol class="steps">
     <li><b>Cache it.</b> Click <em>Send request</em> twice. The first runs the action, the second is answered from the output cache.</li>
     <li><b>Client cannot bypass.</b> Tick <em>Client sends Cache-Control: no-cache</em> and send again. Still served from the cache. Compare this with lesson 2.3.</li>

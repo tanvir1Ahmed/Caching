@@ -6,6 +6,12 @@
 <h1>3.1 Caching strategies: how data gets into the cache</h1>
 <p class="lead">A caching strategy answers two questions: who loads data into the cache when it is read, and what happens to the cache when data is written. This level compares the six classic answers.</p>
 
+<div class="story" data-story="3.1"></div>
+
+
+<details class="deep">
+<summary>&#128214; Want to understand it deeply? Read the full explanation</summary>
+
 <h2>The six strategies at a glance</h2>
 <div class="card">
     <table>
@@ -58,7 +64,9 @@ var result = await readThroughCache.GetAsync(id);</code></pre>
 </div>
 <p>Both behave the same from the outside: the first read is a slow miss, later reads are fast hits. The difference is <b>who is responsible for loading</b>.</p>
 
-<h2>Live demo</h2>
+</details>
+
+<h2><span class="try-it">Try it</span>Live demo</h2>
 <div class="card">
     <div class="toolbar">
         <label class="field">Product
@@ -95,7 +103,7 @@ var result = await readThroughCache.GetAsync(id);</code></pre>
     </div>
 </div>
 
-<h2>Experiments</h2>
+<h2>Experiments: do these in order</h2>
 <ol class="steps">
     <li><b>Same behavior.</b> Click <em>Get</em> twice on each card. Both show a slow miss, then a fast hit.</li>
     <li><b>Who loaded it?</b> Read the event log. Cache-aside says "the service itself loads from the database". Read-through says "the cache called its own loader".</li>

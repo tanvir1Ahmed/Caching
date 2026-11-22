@@ -6,6 +6,12 @@
 <h1>7.2 Cache penetration and Bloom filters</h1>
 <p class="lead">Requests for data that does not exist are never cached, so every one of them goes straight to the database. A buggy client or an attacker can use this to bypass your cache completely.</p>
 
+<div class="story" data-story="7.2"></div>
+
+
+<details class="deep">
+<summary>&#128214; Want to understand it deeply? Read the full explanation</summary>
+
 <h2>The problem</h2>
 <p>Normal cache-aside only stores what it finds. Ask for product 999999, which does not exist, and the database says "not found", nothing is cached, and the next request for 999999 hits the database again. An attacker requesting random ids can push 100% of traffic past the cache.</p>
 
@@ -25,7 +31,9 @@ else cache.Set(key, "NOT_FOUND", TimeSpan.FromSeconds(30));</code></pre>
 </ul>
 <p>This demo uses a deliberately small filter (64 bits, 3 hash functions) so you can see the bits and the false positives. In production, use RedisBloom (<code>BF.ADD</code>, <code>BF.EXISTS</code>) so every server shares one filter, and remember that a basic Bloom filter cannot remove items (counting or cuckoo filters can).</p>
 
-<h2>Live demo: the attack</h2>
+</details>
+
+<h2><span class="try-it">Try it</span>Live demo: the attack</h2>
 <p>Each run sends requests one after another. Missing products cost 800 ms each when they reach the database.</p>
 <div class="card">
     <div class="toolbar">
@@ -46,7 +54,7 @@ else cache.Set(key, "NOT_FOUND", TimeSpan.FromSeconds(30));</code></pre>
     </table>
 </div>
 
-<h2>Live demo: inside the Bloom filter</h2>
+<h2><span class="try-it">Try it</span>Live demo: inside the Bloom filter</h2>
 <div class="card">
     <div class="toolbar">
         <label class="field">Product id to check<input id="checkId" value="5" size="10" /></label>
@@ -58,7 +66,7 @@ else cache.Set(key, "NOT_FOUND", TimeSpan.FromSeconds(30));</code></pre>
     <div id="bloomAnswer" class="outcome"></div>
 </div>
 
-<h2>Experiments</h2>
+<h2>Experiments: do these in order</h2>
 <ol class="steps">
     <li><b>Same missing id.</b> With "Same missing id", run all three. No protection: every request reaches the database. Cache "not found": only the first does. Bloom filter: none.</li>
     <li><b>Random ids.</b> Switch to "Random missing ids". Caching "not found" no longer helps, since every id is new. The Bloom filter still rejects almost everything.</li>

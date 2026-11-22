@@ -6,6 +6,12 @@
 <h1>4.4 HybridCache: memory and Redis together</h1>
 <p class="lead">HybridCache (.NET 9 and later) combines a fast in-memory cache (L1) with a shared distributed cache (L2), adds stampede protection and tag-based removal, and hides it all behind one <code>GetOrCreateAsync</code> call.</p>
 
+<div class="story" data-story="4.4"></div>
+
+
+<details class="deep">
+<summary>&#128214; Want to understand it deeply? Read the full explanation</summary>
+
 <h2>Two levels</h2>
 <div class="flow">
     <div class="flow-step hit"><b>L1: this server's memory</b><small>Microseconds, per server</small></div>
@@ -48,7 +54,9 @@ var product = await cache.GetOrCreateAsync(
     <code>RemoveAsync</code> and <code>RemoveByTagAsync</code> clear L2 and <b>this</b> server's L1. Other servers keep their L1 copy until <code>LocalCacheExpiration</code> runs out. Keep L1 short, or broadcast removals to all servers with Redis Pub/Sub (Levels 5 and 7).
 </div>
 
-<h2>Live demo</h2>
+</details>
+
+<h2><span class="try-it">Try it</span>Live demo</h2>
 <div id="redisStatus"></div>
 <div class="card">
     <div class="toolbar">
@@ -81,7 +89,7 @@ var product = await cache.GetOrCreateAsync(
     </div>
 </div>
 
-<h2>Experiments</h2>
+<h2>Experiments: do these in order</h2>
 <ol class="steps">
     <li><b>Three levels.</b> Click <em>Get</em> three times: first the database (factory), then L1 in microseconds.</li>
     <li><b>Another server's view.</b> Click <em>Get, skipping L1</em>. It reads L2 (Redis), a millisecond or so. This is what a second server experiences the first time.</li>

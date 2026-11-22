@@ -6,6 +6,12 @@
 <h1>4.3 Serialization: turning objects into bytes</h1>
 <p class="lead">A distributed cache only stores bytes. Every write serializes your object and every hit deserializes it again. The format you choose affects size, speed, network cost and how safely you can change your classes.</p>
 
+<div class="story" data-story="4.3"></div>
+
+
+<details class="deep">
+<summary>&#128214; Want to understand it deeply? Read the full explanation</summary>
+
 <h2>Why it matters</h2>
 <ul>
     <li><b>Size:</b> bigger values mean more Redis memory, more network transfer and slower hits. Redis bills and limits are about memory.</li>
@@ -27,7 +33,9 @@
     </table>
 </div>
 
-<h2>Live demo: measure it</h2>
+</details>
+
+<h2><span class="try-it">Try it</span>Live demo: measure it</h2>
 <p>The server builds a list of products and serializes it in several ways. Times are averages over 50 runs on the server.</p>
 <div class="card">
     <div class="toolbar">
@@ -48,13 +56,16 @@
     </table>
 </div>
 
-<h2>Experiments</h2>
+<h2>Experiments: do these in order</h2>
 <ol class="steps">
     <li><b>One product.</b> Compare with 1 product. Compression makes it <b>bigger</b>: compression headers cost more than they save on tiny values.</li>
     <li><b>100 to 10,000 products.</b> Compression shrinks repetitive JSON to a small fraction of its size. That is a big saving in Redis memory and network time, for a small CPU cost.</li>
     <li><b>Indented JSON.</b> Pretty-printing adds a lot of whitespace for nothing. Never cache indented JSON.</li>
     <li><b>Custom format.</b> A hand-made "id|name|price" format is small and fast, but brittle: add a field and every cached value breaks. That is why standard formats exist.</li>
 </ol>
+
+<details class="deep">
+<summary>&#128214; More details (optional)</summary>
 
 <h2>Versioning cached data</h2>
 <p>Imagine you rename <code>Price</code> to <code>UnitPrice</code> and deploy. For the next hour, Redis still holds JSON with <code>"Price"</code>. The new code deserializes it with <code>UnitPrice = 0</code>, and users see free products. Ways to stay safe:</p>
@@ -63,6 +74,8 @@
     <li><b>Only make additive changes</b> to cached classes (add properties, do not rename or change types).</li>
     <li><b>Treat deserialization failures as misses:</b> catch the exception, reload from the database, overwrite the entry.</li>
 </ul>
+
+</details>
 
 <h2>What you should take away</h2>
 <div class="callout tip">

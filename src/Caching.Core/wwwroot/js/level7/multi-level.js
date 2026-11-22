@@ -13,6 +13,7 @@ const refreshEvents = async () => {
 document.getElementById("btnGet").addEventListener("click", e => withBusy(e.target, async () => {
     const result = await Api.call("GET", `/api/level7/multi-level/products/${productSelect.value}`);
     document.getElementById("result").innerHTML = resultHtml(result.data);
+    StoryPlayer.trace("7.4", result.data?.source);
     await refreshEvents();
 }));
 

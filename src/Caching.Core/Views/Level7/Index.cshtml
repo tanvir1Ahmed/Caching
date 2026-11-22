@@ -6,6 +6,12 @@
 <h1>7.1 Cache stampede (thundering herd)</h1>
 <p class="lead">When a popular entry is missing, every request that arrives before it is reloaded goes to the database at the same time. Under heavy traffic that burst can take the database down.</p>
 
+<div class="story" data-story="7.1"></div>
+
+
+<details class="deep">
+<summary>&#128214; Want to understand it deeply? Read the full explanation</summary>
+
 <h2>How it happens</h2>
 <p>A product page gets 500 requests per second and the cached product expires. Loading it takes 800 ms. During those 800 ms, about 400 requests find the cache empty, and <b>each one</b> starts its own database query for the same row. The database suddenly receives 400 identical queries, slows down, loading takes even longer, and more requests pile up.</p>
 <div class="flow">
@@ -49,7 +55,9 @@ finally
 }</code></pre>
 <p>The second <code>TryGetValue</code> inside the lock is essential: the requests that waited find the value the first request stored, instead of loading it again.</p>
 
-<h2>Live demo</h2>
+</details>
+
+<h2><span class="try-it">Try it</span>Live demo</h2>
 <p>Each run empties the cache and sends N requests for the same product <b>at the same moment</b>. Count how many reach the database.</p>
 <div class="card">
     <div class="toolbar">
@@ -73,7 +81,7 @@ finally
     </table>
 </div>
 
-<h2>Experiments</h2>
+<h2>Experiments: do these in order</h2>
 <ol class="steps">
     <li><b>No protection.</b> Run with 20 requests: 20 database queries for the same row. Try 100.</li>
     <li><b>Lock per key.</b> Run with the lock: 1 query, the other 19 are hits. The total time is the same (about 800 ms), so nobody waited longer than the one load.</li>
