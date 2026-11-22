@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Caching.Business/Caching.Business.csproj" />
+    <Project Path="src/Caching.Core/Caching.Core.csproj" />
+    <Project Path="src/Caching.Infrastructure/Caching.Infrastructure.csproj" />
+  </Folder>
+</Solution>
