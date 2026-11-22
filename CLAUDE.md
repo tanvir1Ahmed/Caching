@@ -120,7 +120,9 @@ The user is a beginner and wants visuals first, little text up front. Every less
 - The Redis connection string currently comes from `appsettings.json`. A `ConnectionStrings__Redis` environment variable in Render, if set, overrides it.
 
 ## Presenter videos (AI instructor)
-- The user wants an AI human presenter video for every lesson. Scripts for all 28 lessons and the presenter description are in `docs/video-scripts.md`.
-- Generate videos with the Higgsfield connector (presenter video) and, if needed, ElevenLabs (voice). Use the same presenter, outfit and background in every video.
-- Each lesson view has `<div class="presenter" data-video="N.M" hidden></div>` above its story. `wwwroot/js/presenter.js` reads `wwwroot/videos/videos.json` (`{ "N.M": "https://video-url" }`) and shows a "Watch the instructor" player only for lessons listed there.
-- Prefer hosted video URLs in `videos.json` over committing large video files to the repository.
+- The user wants an AI instructor for every lesson. Scripts for all 28 lessons and the presenter description are in `docs/video-scripts.md`.
+- Video generation needs paid plans (ElevenLabs video is paid only; the Higgsfield connector cannot generate media). The user chose free voice narration instead.
+- Narration is made with the ElevenLabs connector: `creative_generate_speech`, model `eleven_multilingual_v2`, voice "Sia - Warm, Clear and Conversational" (`4cLxTzxGs6YiIomdhhqO`), `generations_count` 1. The free plan gives 10,000 characters a month (about 13 lessons); each lesson costs about 550-760 credits.
+- Generated URLs expire, so download each file to `wwwroot/audio/N.M.mp3`. The download host `elevenlabsusercontent.com` is allowed in the user's "Caching" cloud environment.
+- Each lesson view has `<div class="presenter" data-video="N.M" hidden></div>` above its story. `wwwroot/js/presenter.js` reads `wwwroot/videos/videos.json` (`{ "N.M": "/audio/N.M.mp3" }` or a video URL) and shows "Listen to the instructor" for `.mp3` entries and "Watch the instructor" for videos, only for lessons listed there.
+- Narrated so far: 1.1, 1.2, 1.3, 1.4.

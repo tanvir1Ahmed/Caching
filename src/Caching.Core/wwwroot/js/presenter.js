@@ -11,9 +11,14 @@
     panels.forEach(panel => {
         const url = videos[panel.dataset.video];
         if (!url) return;
+        const audio = /\.mp3$/i.test(url);
+        const tag = audio ? "Listen to the instructor" : "Watch the instructor";
+        const player = audio
+            ? `<audio controls preload="metadata" src="${escapeHtml(url)}"></audio>`
+            : `<video controls preload="metadata" playsinline src="${escapeHtml(url)}"></video>`;
         panel.innerHTML = `
-            <div class="story-head"><span class="story-tag presenter-tag">Watch the instructor</span><span class="story-title">Lesson ${escapeHtml(panel.dataset.video)} explained</span></div>
-            <video controls preload="metadata" playsinline src="${escapeHtml(url)}"></video>`;
+            <div class="story-head"><span class="story-tag presenter-tag">${tag}</span><span class="story-title">Lesson ${escapeHtml(panel.dataset.video)} explained</span></div>
+            ${player}`;
         panel.hidden = false;
     });
 })();

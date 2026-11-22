@@ -430,4 +430,5 @@ details.deep > summary::-webkit-details-marker { display: none; }
 .presenter { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px; margin: 20px 0; }
 .presenter[hidden] { display: none; }
 .presenter video { width: 100%; max-height: 520px; border-radius: 10px; background: #000; display: block; }
+.presenter audio { width: 100%; display: block; margin-top: 8px; }
 .presenter-tag { background: var(--hit); }
