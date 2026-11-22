@@ -96,3 +96,10 @@ Every lesson view follows the same structure:
 
 ## Running
 `dotnet run --project src/Caching.Core` then open `http://localhost:5030` for the portal and `http://localhost:5030/swagger` for the API.
+
+## Deployment
+- Hosted on **Render** (free plan) using `Dockerfile` and the `render.yaml` blueprint. GitHub Pages cannot host this app because it needs a .NET server.
+- Render builds from the branch named in `render.yaml` and redeploys automatically on every push to it.
+- The container listens on port 10000 (`ASPNETCORE_HTTP_PORTS`). Render provides HTTPS.
+- The SQLite file is recreated from migrations on each deploy or restart (Render's free disk is temporary). This is fine because the data is only demo data.
+- The Redis connection string is set as the `ConnectionStrings__Redis` environment variable in the Render dashboard, never in the repository.

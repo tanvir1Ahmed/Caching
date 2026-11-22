@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: caching-academy
+    runtime: docker
+    plan: free
+    branch: claude/dotnet10-mvc-api-setup-cxre8o
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ConnectionStrings__Redis
+        sync: false
