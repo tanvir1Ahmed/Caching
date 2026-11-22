@@ -276,7 +276,7 @@ Stories["6.1-cdc"] = deep({
         script: node(90, 55, "📜", "Import script"),
         db: node(320, 130, "🗄️", "Database"),
         cdc: node(90, 205, "👀", "Change capture"),
-        cache: node(555, 130, "⚡", "Cache", "$100", { w: 120 })
+        cache: node(545, 130, "⚡", "Cache", "$100", { w: 150 })
     },
     links: [["script", "db"], ["db", "cdc", { dashed: true }], ["cdc", "cache", { dashed: true }]],
     steps: [
