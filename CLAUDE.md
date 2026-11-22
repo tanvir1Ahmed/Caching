@@ -84,10 +84,10 @@ Every lesson view follows the same structure:
 7. Link to the next lesson
 
 ## Redis
-- Connection string key: `ConnectionStrings:Redis`. It is empty in `appsettings.json`; the user provides a free Redis connection string.
-- Never commit the real connection string. The user stores it with user secrets:
-  `cd src/Caching.Core && dotnet user-secrets set "ConnectionStrings:Redis" "<connection string>"`
-- `AddInfrastructure` registers `IConnectionMultiplexer` and `AddStackExchangeRedisCache` only when the connection string is not empty. Redis features must handle Redis not being configured.
+- Connection string key: `ConnectionStrings:Redis`, in StackExchange.Redis format (`host:port,user=...,password=...,abortConnect=false`), not the `redis://` URI format.
+- By the user's explicit decision, the Redis Cloud connection string is stored in `src/Caching.Core/appsettings.json` and committed, even though the repository is public. The user knows the risk and will move it to a Render environment variable or user secrets later. Do not move or remove it unless the user asks.
+- `AddInfrastructure` registers `IConnectionMultiplexer` and `AddStackExchangeRedisCache` only when the connection string is not empty. Redis features must handle Redis not being configured or not reachable.
+- The Claude cloud sandbox cannot reach the Redis host, so Redis code cannot be tested live from there.
 
 ## Packages
 - All Microsoft.* packages (EF Core, Extensions) must stay on version `10.0.x` (currently `10.0.15`). Version 11.x targets net11.0 and does not work on net10.0.
@@ -102,4 +102,4 @@ Every lesson view follows the same structure:
 - Render builds from the branch named in `render.yaml` and redeploys automatically on every push to it.
 - The container listens on port 10000 (`ASPNETCORE_HTTP_PORTS`). Render provides HTTPS.
 - The SQLite file is recreated from migrations on each deploy or restart (Render's free disk is temporary). This is fine because the data is only demo data.
-- The Redis connection string is set as the `ConnectionStrings__Redis` environment variable in the Render dashboard, never in the repository.
+- The Redis connection string currently comes from `appsettings.json`. A `ConnectionStrings__Redis` environment variable in Render, if set, overrides it.
