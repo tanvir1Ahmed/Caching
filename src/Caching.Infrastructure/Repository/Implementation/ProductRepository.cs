@@ -3,19 +3,24 @@ using Caching.Infrastructure.Data.Entity;
 using Caching.Infrastructure.Repository.Interface;
 using Dapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace Caching.Infrastructure.Repository.Implementation;
 
-public class ProductRepository(AppDbContext context) : IProductRepository
+public class ProductRepository(AppDbContext context, IConfiguration configuration) : IProductRepository
 {
+    private int SimulatedDelayMs => configuration.GetValue<int>("Database:SimulatedDelayMs");
+
     public async Task<IEnumerable<Product>> GetAllAsync()
     {
+        await Task.Delay(SimulatedDelayMs);
         var connection = context.Database.GetDbConnection();
         return await connection.QueryAsync<Product>("SELECT Id, Name, Price FROM Products");
     }
 
     public async Task<Product?> GetByIdAsync(int id)
     {
+        await Task.Delay(SimulatedDelayMs);
         var connection = context.Database.GetDbConnection();
         return await connection.QueryFirstOrDefaultAsync<Product>(
             "SELECT Id, Name, Price FROM Products WHERE Id = @Id", new { Id = id });

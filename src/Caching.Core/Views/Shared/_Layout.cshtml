@@ -1,0 +1,43 @@
+@{
+    var lesson = ViewData["Lesson"] as string ?? "";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] | Caching Academy</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <header class="topbar">
+        <a class="brand" href="/">Caching Academy</a>
+        <nav class="topbar-links">
+            <a href="/swagger" target="_blank">Swagger</a>
+        </nav>
+    </header>
+    <div class="shell">
+        <aside class="sidebar">
+            <a class="nav-item @(lesson == "home" ? "active" : "")" href="/">Course map</a>
+
+            <div class="nav-group">Level 1: Fundamentals</div>
+            <a class="nav-item @(lesson == "l1-index" ? "active" : "")" href="/Level1">1.1 What is caching?</a>
+            <a class="nav-item @(lesson == "l1-first" ? "active" : "")" href="/Level1/FirstCache">1.2 Your first cache</a>
+            <a class="nav-item @(lesson == "l1-expiration" ? "active" : "")" href="/Level1/Expiration">1.3 Expiration</a>
+            <a class="nav-item @(lesson == "l1-eviction" ? "active" : "")" href="/Level1/Eviction">1.4 Size limits and eviction</a>
+
+            <div class="nav-group muted">Level 2: HTTP caching</div>
+            <div class="nav-group muted">Level 3: Caching strategies</div>
+            <div class="nav-group muted">Level 4: Distributed caching</div>
+            <div class="nav-group muted">Level 5: Redis in depth</div>
+            <div class="nav-group muted">Level 6: Invalidation</div>
+            <div class="nav-group muted">Level 7: Advanced problems</div>
+        </aside>
+        <main class="content">
+            @RenderBody()
+        </main>
+    </div>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,94 @@
+@{
+    ViewData["Title"] = "Course map";
+    ViewData["Lesson"] = "home";
+    var redisConfigured = (bool)ViewBag.RedisConfigured;
+}
+
+<h1>Caching from beginner to advanced</h1>
+<p class="lead">Every lesson has three parts: the idea explained in plain words, a live demo that calls the real API, and a list of the source files you should read next.</p>
+
+<div class="callout">
+    <strong>How to study with this portal</strong>
+    Read the explanation, then run the experiments in order and watch the numbers and the event log. After that, open the files listed under <em>Read the code</em> and follow the request from the API controller in <code>Caching.Core</code> to the service in <code>Caching.Business</code> and the repository in <code>Caching.Infrastructure</code>. Every endpoint is also available in <a href="/swagger" target="_blank">Swagger</a>.
+</div>
+
+<h2>Environment</h2>
+<div class="grid grid-2">
+    <div class="card">
+        <b>SQLite database</b> <span class="badge hit">Ready</span>
+        <p class="muted">Created automatically from EF Core migrations when the app starts, and filled with 10 sample products. Every database read waits <code>Database:SimulatedDelayMs</code> (800 ms) on purpose, so it behaves like a slow, real database and the benefit of caching is easy to see.</p>
+    </div>
+    <div class="card">
+        <b>Redis</b>
+        @if (redisConfigured)
+        {
+            <span class="badge hit">Configured</span>
+            <p class="muted">A Redis connection string was found. It will be used from Level 4.</p>
+        }
+        else
+        {
+            <span class="badge miss">Not configured</span>
+            <p class="muted">Not needed until Level 4. When you have a free Redis connection string, store it as a user secret so it is never committed:</p>
+            <p><code>cd src/Caching.Core</code><br /><code>dotnet user-secrets set "ConnectionStrings:Redis" "host:port,password=...,ssl=True,abortConnect=False"</code></p>
+        }
+    </div>
+</div>
+
+<h2>The course</h2>
+<div class="grid grid-2">
+    <a class="card level-card" href="/Level1" style="text-decoration:none;color:inherit">
+        <div><b>Level 1: Fundamentals</b> <span class="badge hit">Available</span></div>
+        <ul>
+            <li>What a cache is, hits, misses, hit ratio, latency</li>
+            <li>Your first cache with IMemoryCache (cache-aside)</li>
+            <li>Absolute, sliding and combined expiration</li>
+            <li>Size limits, priorities, compaction, eviction callbacks</li>
+        </ul>
+    </a>
+    <div class="card level-card locked">
+        <div><b>Level 2: HTTP and response caching</b> <span class="badge">Next</span></div>
+        <ul>
+            <li>Cache-Control, ETag, Last-Modified, 304 Not Modified</li>
+            <li>Response caching middleware and output caching</li>
+            <li>How CDNs and proxies cache</li>
+        </ul>
+    </div>
+    <div class="card level-card locked">
+        <div><b>Level 3: Caching strategies</b></div>
+        <ul>
+            <li>Cache-aside, read-through, write-through</li>
+            <li>Write-behind, write-around, refresh-ahead</li>
+        </ul>
+    </div>
+    <div class="card level-card locked">
+        <div><b>Level 4: Distributed caching</b></div>
+        <ul>
+            <li>IDistributedCache with Redis and SQL</li>
+            <li>HybridCache (local + Redis)</li>
+            <li>Serialization choices</li>
+        </ul>
+    </div>
+    <div class="card level-card locked">
+        <div><b>Level 5: Redis in depth</b></div>
+        <ul>
+            <li>Data types and real use cases</li>
+            <li>Pub/Sub, distributed locks, rate limiting</li>
+            <li>Eviction policies, persistence, replication, cluster</li>
+        </ul>
+    </div>
+    <div class="card level-card locked">
+        <div><b>Level 6: Invalidation and consistency</b></div>
+        <ul>
+            <li>Time, event, tag and version based invalidation</li>
+            <li>Stale data and eventual consistency</li>
+        </ul>
+    </div>
+    <div class="card level-card locked">
+        <div><b>Level 7: Advanced problems</b></div>
+        <ul>
+            <li>Stampede, penetration, avalanche, hot keys</li>
+            <li>Multi-level caching, Bloom filters, monitoring</li>
+            <li>Memcached, NCache, EF Core second-level cache</li>
+        </ul>
+    </div>
+</div>

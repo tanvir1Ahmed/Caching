@@ -1,0 +1,139 @@
+@{
+    ViewData["Title"] = "Expiration";
+    ViewData["Lesson"] = "l1-expiration";
+}
+
+<h1>1.3 Expiration: how long may data live?</h1>
+<p class="lead">Expiration puts a time limit on cached data. It controls the maximum staleness you accept and stops the cache from keeping data nobody uses.</p>
+
+<h2>Why expire anything?</h2>
+<p>In the previous lesson the cached price stayed wrong after the database changed. Expiration is the safety net: even if nobody removes the stale value, it disappears after its time is up and the next request loads fresh data. The TTL you pick is a trade-off:</p>
+<div class="grid grid-2">
+    <div class="card"><b>Short TTL</b><p class="muted">Fresher data, but more misses and more database load.</p></div>
+    <div class="card"><b>Long TTL</b><p class="muted">Higher hit ratio, but data can be stale for longer and uses memory longer.</p></div>
+</div>
+
+<h2>The three kinds of expiration</h2>
+<div class="grid grid-3">
+    <div class="card">
+        <b>Absolute</b>
+        <p class="muted">The entry dies at a fixed moment, no matter how often it is read.</p>
+        <pre><code>AbsoluteExpirationRelativeToNow
+    = TimeSpan.FromSeconds(20)</code></pre>
+        <p>Use it when you need a guaranteed maximum age, for example exchange rates refreshed every 10 minutes.</p>
+    </div>
+    <div class="card">
+        <b>Sliding</b>
+        <p class="muted">The entry dies if nobody reads it for a period. Every read pushes the deadline forward.</p>
+        <pre><code>SlidingExpiration
+    = TimeSpan.FromSeconds(8)</code></pre>
+        <p>Use it to keep popular data and drop unused data, for example user session data.</p>
+    </div>
+    <div class="card">
+        <b>Combined</b>
+        <p class="muted">Sliding, but with an absolute maximum. Whichever comes first wins.</p>
+        <pre><code>SlidingExpiration = 8s
+AbsoluteExpirationRelativeToNow = 30s</code></pre>
+        <p>The usual best choice: unused data leaves early, popular data still gets refreshed.</p>
+    </div>
+</div>
+
+<div class="callout danger">
+    <strong>The trap with sliding expiration alone</strong>
+    A popular entry that is read every few seconds <b>never expires</b>. If its source changes, users can see stale data forever. That is why sliding expiration should almost always be combined with an absolute limit.
+</div>
+
+<h2>Live demo</h2>
+<p>All three cards read the same product, but each uses its own key and expiration rule. The countdown shows when the entry will expire, based on what the server returned.</p>
+<div class="card">
+    <div class="toolbar">
+        <label class="field">Product
+            <select id="productId">
+                <option value="1">1 - Laptop</option>
+                <option value="2">2 - Mouse</option>
+                <option value="3">3 - Keyboard</option>
+                <option value="4">4 - Monitor</option>
+                <option value="5">5 - Headphones</option>
+            </select>
+        </label>
+        <button class="btn" id="btnClearLog">Clear event log</button>
+    </div>
+</div>
+
+<div class="grid grid-3">
+    @foreach (var (type, rule) in new[] { ("Absolute", "Absolute 20 s"), ("Sliding", "Sliding 8 s"), ("Combined", "Sliding 8 s, max 30 s") })
+    {
+        <div class="card" data-type="@type">
+            <b>@type</b> <span class="muted">(@rule)</span>
+            <div class="countdown" data-role="countdown">not cached</div>
+            <div class="muted" data-role="detail">Click Get to load it.</div>
+            <div class="toolbar">
+                <button class="btn primary" data-role="get">Get</button>
+                <button class="btn danger" data-role="remove">Remove</button>
+            </div>
+            <div data-role="last" class="muted"></div>
+        </div>
+    }
+</div>
+
+<div class="card">
+    <b>Event log</b> <span class="muted">(newest first, refreshes every 2 seconds)</span>
+    <div class="events">
+        <table>
+            <thead><tr><th>Time</th><th>Event</th><th>Key</th><th>Detail</th></tr></thead>
+            <tbody id="events"></tbody>
+        </table>
+    </div>
+</div>
+
+<h2>Experiments</h2>
+<ol class="steps">
+    <li><b>Absolute.</b> Click <em>Get</em> on Absolute. Keep clicking every few seconds. The countdown does <b>not</b> move back. After 20 seconds the next click is a miss.</li>
+    <li><b>Sliding.</b> Click <em>Get</em> on Sliding, then click again every 4 to 5 seconds. Each hit resets the countdown to 8 seconds, so it stays alive as long as you keep using it. Stop for 8 seconds and the next click is a miss.</li>
+    <li><b>Combined.</b> Do the same on Combined. Each hit resets the 8 seconds, but no matter how fast you click, the entry dies 30 seconds after it was first cached. That 30 second limit is what protects you from serving stale data forever.</li>
+    <li><b>Lazy cleanup.</b> Let an entry expire and do <b>not</b> click anything. Watch the event log: the <span class="badge evicted">Evicted</span> event with reason <code>Expired</code> often does not appear at the moment of expiry. It appears when you next touch the cache or when the background scan runs.</li>
+</ol>
+
+<h2>How IMemoryCache really removes expired entries</h2>
+<p>There is no timer per entry. IMemoryCache expires entries <b>lazily</b>:</p>
+<ul>
+    <li>When you read a key, it first checks whether that entry has expired. If so, it removes it and reports a miss. You can never read an expired value.</li>
+    <li>From time to time, during other cache operations, it scans all entries and removes expired ones. The minimum time between scans is <code>ExpirationScanFrequency</code> (1 minute by default).</li>
+</ul>
+<p>So an expired entry can still use memory for a while, and an eviction callback for <code>Expired</code> can run later than you expect. Never rely on the callback firing at the exact expiry time.</p>
+
+<h2>Other ways to end an entry</h2>
+<table class="card">
+    <thead><tr><th>Option</th><th>What it does</th></tr></thead>
+    <tbody>
+        <tr><td><code>AbsoluteExpiration</code></td><td>Expire at a specific date and time, for example midnight.</td></tr>
+        <tr><td><code>AbsoluteExpirationRelativeToNow</code></td><td>Expire after a duration from now. Used in this demo.</td></tr>
+        <tr><td><code>SlidingExpiration</code></td><td>Expire after a period without reads.</td></tr>
+        <tr><td><code>ExpirationTokens</code></td><td>Expire when something signals a change, for example a file changes or a <code>CancellationTokenSource</code> is cancelled. Useful for removing a group of entries at once (Level 6).</td></tr>
+        <tr><td><code>cache.Remove(key)</code></td><td>Remove immediately, which you did in lesson 1.2.</td></tr>
+    </tbody>
+</table>
+
+<h2>Choosing a TTL</h2>
+<ol>
+    <li><b>How stale may it be?</b> Ask the business. "Prices may be 1 minute old" gives you a maximum TTL of 1 minute.</li>
+    <li><b>How often does it change?</b> Country lists: days. Product prices: minutes. Stock levels: seconds or do not cache.</li>
+    <li><b>How expensive is a miss?</b> The more expensive the source, the longer you want to keep the value.</li>
+</ol>
+<div class="callout warn">
+    <strong>Preview: cache avalanche</strong>
+    If you load 10,000 entries at startup with exactly the same TTL, they all expire in the same second and the database is hit by 10,000 misses at once. The fix is adding a small random amount (jitter) to each TTL. You will build it in Level 7.
+</div>
+
+<h2>Read the code</h2>
+<ul class="code-ref">
+    <li><code>Caching.Business/Service/Implementation/ExpirationService.cs</code>: the three settings and how <code>MemoryCacheEntryOptions</code> is built, including the eviction callback that writes to the event log.</li>
+    <li><code>Caching.Business/Dto/CachedValue.cs</code>: <code>ExpiresAt</code> shows how sliding and absolute combine (the earliest one wins).</li>
+    <li><code>Caching.Core/Controllers/Api/ExpirationController.cs</code>: the endpoints.</li>
+</ul>
+
+<div class="next-link"><a class="btn primary" href="/Level1/Eviction">Next: Size limits and eviction &rarr;</a></div>
+
+@section Scripts {
+    <script src="~/js/level1/expiration.js" asp-append-version="true"></script>
+}

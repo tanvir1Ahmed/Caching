@@ -1,0 +1,148 @@
+@{
+    ViewData["Title"] = "What is caching?";
+    ViewData["Lesson"] = "l1-index";
+}
+
+<h1>1.1 What is caching?</h1>
+<p class="lead">A cache is a small, fast store that keeps a copy of data you have already fetched or computed, so the next time you need it you skip the slow work.</p>
+
+<h2>The idea in one picture</h2>
+<p>Imagine you are writing an essay and need facts from a library across town. The first time, you travel to the library (slow). You write the facts in a notebook on your desk. Next time you need the same fact you read your notebook (fast). Your notebook is a cache.</p>
+<div class="flow">
+    <div class="flow-step"><b>Request</b><small>"Give me product 1"</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step hit"><b>Cache</b><small>Fast, small, temporary copy</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step miss"><b>Source of truth</b><small>Database, API, heavy calculation. Slow, but always correct</small></div>
+</div>
+<p>The source of truth (the database) is always correct. The cache is only a copy. That single fact explains almost every problem you will meet later: the copy can become old (<em>stale</em>), it can disappear, and it costs memory.</p>
+
+<h2>Why cache at all?</h2>
+<div class="grid grid-2">
+    <div class="card"><b>Speed (latency)</b><p class="muted">Reading from memory takes microseconds. A database query or an external API call takes milliseconds or seconds. Users feel the difference.</p></div>
+    <div class="card"><b>Less load (throughput)</b><p class="muted">If 95% of reads are answered by the cache, the database only does 5% of the work. The same database can now serve many more users.</p></div>
+    <div class="card"><b>Lower cost</b><p class="muted">Fewer database queries and fewer paid external API calls means smaller servers and smaller bills.</p></div>
+    <div class="card"><b>Resilience</b><p class="muted">If the source is slow or briefly down, cached data can still be served for a while.</p></div>
+</div>
+
+<h2>Vocabulary you will use in every lesson</h2>
+<div class="card">
+    <table>
+        <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+        <tbody>
+            <tr><td><b>Cache key</b></td><td>The name you store a value under, for example <code>level1:product:1</code>. Same key, same value.</td></tr>
+            <tr><td><b>Cache hit</b></td><td>The value was found in the cache. Fast.</td></tr>
+            <tr><td><b>Cache miss</b></td><td>The value was not in the cache, so you had to go to the source. Slow.</td></tr>
+            <tr><td><b>Hit ratio</b></td><td>hits / (hits + misses). The most important number for judging a cache.</td></tr>
+            <tr><td><b>TTL (time to live)</b></td><td>How long a value may stay in the cache before it expires.</td></tr>
+            <tr><td><b>Expiration</b></td><td>Removing a value because its time is up (lesson 1.3).</td></tr>
+            <tr><td><b>Eviction</b></td><td>Removing a value to make room, or because you asked for it (lesson 1.4).</td></tr>
+            <tr><td><b>Invalidation</b></td><td>Removing or updating a value because the source data changed (Level 6).</td></tr>
+            <tr><td><b>Stale data</b></td><td>A cached copy that no longer matches the source.</td></tr>
+            <tr><td><b>Cold / warm cache</b></td><td>Cold: empty, every request misses (for example right after a restart). Warm: full of useful data.</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<h2>How fast is "fast"?</h2>
+<p>Rough numbers, so you get a feeling for the scale. Exact values depend on hardware and network.</p>
+<div class="card">
+    <table>
+        <thead><tr><th>Where the data comes from</th><th>Typical time</th><th>Covered in</th></tr></thead>
+        <tbody>
+            <tr><td>Object already in your app's memory (IMemoryCache)</td><td>well under 1 microsecond to a few microseconds</td><td>Level 1</td></tr>
+            <tr><td>Browser cache (no network at all)</td><td>~0 ms network</td><td>Level 2</td></tr>
+            <tr><td>Redis in the same data center</td><td>0.2 to 1 ms</td><td>Level 4, 5</td></tr>
+            <tr><td>Simple database query</td><td>1 to 50 ms</td><td></td></tr>
+            <tr><td>Complex query or report</td><td>100 ms to seconds</td><td></td></tr>
+            <tr><td>External HTTP API in another region</td><td>100 to 500 ms+</td><td></td></tr>
+        </tbody>
+    </table>
+</div>
+
+<h2>Caches are everywhere: the layers</h2>
+<p>A single web request can pass several caches. This course walks through them from your app outward and inward.</p>
+<div class="flow">
+    <div class="flow-step"><b>Browser</b><small>HTTP cache. Level 2</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><b>CDN / proxy</b><small>Shared HTTP cache. Level 2</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step hit"><b>App memory</b><small>IMemoryCache. Level 1</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><b>Distributed cache</b><small>Redis. Level 4, 5</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step miss"><b>Database</b><small>Has its own buffer cache too</small></div>
+</div>
+
+<h2>Hit ratio decides everything</h2>
+<p>The average time of a request is:</p>
+<p class="card mono">average = hitRatio &times; hitTime + (1 &minus; hitRatio) &times; missTime</p>
+<p>Move the sliders and see how strongly the hit ratio controls performance.</p>
+<div class="card">
+    <div class="grid grid-3">
+        <label class="field">Hit ratio: <b id="ratioLabel">90%</b><input id="ratio" type="range" min="0" max="100" value="90" /></label>
+        <label class="field">Hit time (ms)<input id="hitTime" type="number" value="0.01" step="0.01" min="0" /></label>
+        <label class="field">Miss time (ms)<input id="missTime" type="number" value="800" min="0" /></label>
+    </div>
+    <div class="grid grid-3" style="margin-top:16px">
+        <div class="stat"><div class="value" id="avg">-</div><div class="label">Average per request</div></div>
+        <div class="stat"><div class="value" id="dbCalls">-</div><div class="label">Database calls per 1,000 requests</div></div>
+        <div class="stat"><div class="value" id="speedup">-</div><div class="label">Faster than no cache</div></div>
+    </div>
+</div>
+<div class="callout tip">
+    <strong>Notice</strong>
+    Going from 90% to 99% hit ratio cuts the average time by about 10 times, because the misses are what cost you. A cache is only worth it when the same data is read many times.
+</div>
+
+<h2>When should you cache?</h2>
+<div class="grid grid-2">
+    <div class="card">
+        <b>Good candidates</b>
+        <ul>
+            <li>Read much more often than written (product catalog, settings, country list)</li>
+            <li>Expensive to get (slow query, paid API, heavy calculation)</li>
+            <li>It is acceptable if the data is a little old for a short time</li>
+            <li>Many users ask for the same data</li>
+        </ul>
+    </div>
+    <div class="card">
+        <b>Poor candidates</b>
+        <ul>
+            <li>Changes on almost every request (live stock count during checkout)</li>
+            <li>Must be 100% correct right now (bank balance before a transfer)</li>
+            <li>Unique per request and never asked for again</li>
+            <li>Already cheap to get, so the cache adds complexity for no gain</li>
+        </ul>
+    </div>
+</div>
+
+<h2>Designing a cache key</h2>
+<p>A key must contain <b>everything that changes the result</b>, and nothing else.</p>
+<div class="card">
+    <table>
+        <thead><tr><th>Key</th><th>Verdict</th></tr></thead>
+        <tbody>
+            <tr><td><code>product</code></td><td>Wrong. All products would share one value.</td></tr>
+            <tr><td><code>product:1</code></td><td>Good for a single product.</td></tr>
+            <tr><td><code>products:page:2</code></td><td>Wrong if the result also depends on page size or sort order.</td></tr>
+            <tr><td><code>products:page:2:size:20:sort:price</code></td><td>Good. Every input is in the key.</td></tr>
+            <tr><td><code>user:42:cart</code></td><td>Good. User specific data must include the user id, or users would see each other's data.</td></tr>
+        </tbody>
+    </table>
+</div>
+<div class="callout">
+    <strong>Convention used in this project</strong>
+    <code>area:entity:id</code>, for example <code>level1:product:1</code>. The prefix groups keys, which makes them easy to find, log and remove together. All keys are built in one place: <code>Caching.Business/Constant/CacheKeys.cs</code>.
+</div>
+
+<div class="callout warn">
+    <strong>The famous quote</strong>
+    "There are only two hard things in computer science: cache invalidation and naming things." Keep it in mind. Putting data into a cache is easy. Knowing when it is no longer correct is the hard part, and Levels 3 and 6 are about exactly that.
+</div>
+
+<div class="next-link"><a class="btn primary" href="/Level1/FirstCache">Next: Your first cache &rarr;</a></div>
+
+@section Scripts {
+    <script src="~/js/level1/fundamentals.js" asp-append-version="true"></script>
+}

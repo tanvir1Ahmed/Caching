@@ -1,0 +1,161 @@
+@{
+    ViewData["Title"] = "Your first cache";
+    ViewData["Lesson"] = "l1-first";
+}
+
+<h1>1.2 Your first cache: IMemoryCache and cache-aside</h1>
+<p class="lead">You will compare reading a product straight from the database with reading it through an in-memory cache, and then break the cache on purpose to see its weaknesses.</p>
+
+<h2>What is IMemoryCache?</h2>
+<p><code>IMemoryCache</code> is the cache built into .NET. It is a thread-safe dictionary that lives <b>inside your application's memory</b> and supports expiration and size limits. You turn it on with <code>services.AddMemoryCache()</code> and inject it wherever you need it.</p>
+<div class="grid grid-2">
+    <div class="card">
+        <b>Strengths</b>
+        <ul>
+            <li>Extremely fast: it stores the object itself, no network, no serialization</li>
+            <li>Zero extra infrastructure</li>
+            <li>Perfect for small, read-heavy data on a single server</li>
+        </ul>
+    </div>
+    <div class="card">
+        <b>Limits</b>
+        <ul>
+            <li>Lost when the app restarts (the cache becomes cold)</li>
+            <li>Each server has its own copy. With 3 servers you have 3 different caches that can disagree. Level 4 solves this with Redis</li>
+            <li>Uses your app's RAM, so it needs limits (lesson 1.4)</li>
+        </ul>
+    </div>
+</div>
+
+<h2>The pattern: cache-aside (lazy loading)</h2>
+<p>The application itself checks the cache first and only goes to the database on a miss. The cache sits "aside" and knows nothing about the database. It is the most common caching pattern, and you will compare it with the others in Level 3.</p>
+<div class="flow">
+    <div class="flow-step"><b>1. Build the key</b><small><code>level1:product:1</code></small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><b>2. Look in the cache</b><small><code>TryGetValue</code></small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step hit"><b>Hit</b><small>Return the cached value. Done.</small></div>
+</div>
+<div class="flow">
+    <div class="flow-step miss"><b>Miss</b><small>Not found</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><b>3. Load from database</b><small>Slow (800 ms here)</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><b>4. Store in the cache</b><small><code>Set(key, value, 60s)</code></small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><b>5. Return</b><small>The next request is a hit</small></div>
+</div>
+<p>The heart of <code>MemoryCacheBasicService.GetWithCacheAsync</code>, slightly shortened:</p>
+<pre><code>if (cache.TryGetValue(key, out CachedValue&lt;ProductDto&gt;? cached) &amp;&amp; cached is not null)
+{
+    return new CacheResultDto&lt;ProductDto&gt; { Data = cached.Value, Source = "Cache" };
+}
+
+var product = await repository.GetByIdAsync(id);
+var value = new CachedValue&lt;ProductDto&gt;(product.ToDto(), Duration, null);
+cache.Set(key, value, Duration);
+return new CacheResultDto&lt;ProductDto&gt; { Data = value.Value, Source = "Database" };</code></pre>
+<p class="muted"><code>CachedValue&lt;T&gt;</code> is a small wrapper that remembers when the value was cached and when it expires, only so this portal can show it to you. In normal code you would usually cache the DTO directly.</p>
+
+<h2>Live demo</h2>
+<div class="card">
+    <div class="toolbar">
+        <label class="field">Product
+            <select id="productId">
+                <option value="1">1 - Laptop</option>
+                <option value="2">2 - Mouse</option>
+                <option value="3">3 - Keyboard</option>
+                <option value="4">4 - Monitor</option>
+                <option value="5">5 - Headphones</option>
+                <option value="6">6 - Webcam</option>
+                <option value="7">7 - Microphone</option>
+                <option value="8">8 - Desk Lamp</option>
+                <option value="9">9 - USB Hub</option>
+                <option value="10">10 - External SSD</option>
+                <option value="999">999 - Does not exist</option>
+            </select>
+        </label>
+    </div>
+    <div class="toolbar">
+        <button class="btn" id="btnNoCache">Get without cache</button>
+        <button class="btn primary" id="btnCache">Get with cache</button>
+        <button class="btn" id="btnBurst">Send 5 cached requests</button>
+        <button class="btn danger" id="btnRemove">Remove from cache</button>
+        <button class="btn" id="btnPrice">Change price in database</button>
+        <button class="btn" id="btnReset">Clear history</button>
+    </div>
+
+    <div class="grid grid-3" style="margin-top:12px">
+        <div class="card stat"><div class="value" id="lastSource">-</div><div class="label">Last answer came from</div></div>
+        <div class="card stat"><div class="value" id="lastTime">-</div><div class="label">Server time for last request</div></div>
+        <div class="card stat"><div class="value" id="lastPrice">-</div><div class="label">Price returned</div></div>
+    </div>
+    <p class="muted" id="lastInfo"></p>
+</div>
+
+<div class="grid grid-2">
+    <div class="card">
+        <b>Request history</b>
+        <table>
+            <thead><tr><th>#</th><th>Mode</th><th>Source</th><th>Server time</th><th>Price</th></tr></thead>
+            <tbody id="history"><tr><td colspan="5" class="muted">No requests yet.</td></tr></tbody>
+        </table>
+    </div>
+    <div class="card">
+        <b>IMemoryCache statistics</b>
+        <p class="muted">Read live from <code>cache.GetCurrentStatistics()</code>. Statistics are enabled with <code>TrackStatistics = true</code> in <code>Caching.Business/DependencyInjection.cs</code>. The counters include every lesson that uses the shared cache.</p>
+        <div class="grid grid-2">
+            <div class="stat"><div class="value" id="statHits">0</div><div class="label">Hits</div></div>
+            <div class="stat"><div class="value" id="statMisses">0</div><div class="label">Misses</div></div>
+            <div class="stat"><div class="value" id="statRatio">0%</div><div class="label">Hit ratio</div></div>
+            <div class="stat"><div class="value" id="statEntries">0</div><div class="label">Entries</div></div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <b>Event log</b> <span class="muted">(what the service did, newest first)</span>
+    <div class="events">
+        <table>
+            <thead><tr><th>Time</th><th>Event</th><th>Key</th><th>Detail</th></tr></thead>
+            <tbody id="events"></tbody>
+        </table>
+    </div>
+</div>
+
+<h2>Experiments</h2>
+<ol class="steps">
+    <li><b>Feel the database.</b> Click <em>Get without cache</em> three times. Every request takes about 800 ms because every request goes to the database.</li>
+    <li><b>First miss.</b> Click <em>Get with cache</em>. The first time is a <span class="badge miss">Miss</span>: it is just as slow as the database, plus a tiny bit to store the value. The cache does not make the first request faster.</li>
+    <li><b>Hits.</b> Click <em>Send 5 cached requests</em>. All five are <span class="badge hit">Hit</span> and take a few thousandths of a millisecond. Look at the hit ratio climbing.</li>
+    <li><b>Stale data.</b> Click <em>Change price in database</em>. It updates the price through the normal product API. Now click <em>Get with cache</em>: you still get the <b>old</b> price, because the cache does not know the database changed. Click <em>Get without cache</em> to see the real price.</li>
+    <li><b>Fix it by removing.</b> Click <em>Remove from cache</em>, then <em>Get with cache</em>. It is a miss again and now returns the new price. Removing a key after a change is the simplest form of invalidation.</li>
+    <li><b>Things that do not exist.</b> Select product 999 and click <em>Get with cache</em> several times. Every request is a slow miss, because nothing gets cached when the product is not found. This is called <em>cache penetration</em>, and you will fix it in Level 7.</li>
+    <li><b>Restart.</b> Stop and start the app, then click <em>Get with cache</em>. The cache is cold again. In-memory caches do not survive restarts.</li>
+</ol>
+
+<h2>What you should take away</h2>
+<div class="callout tip">
+    <strong>Key points</strong>
+    A hit is thousands of times faster than a miss. The first request is always a miss. A cache is a copy, so after the source changes the copy is stale until it expires or is removed. In-memory means per process, so it is gone after a restart and not shared between servers.
+</div>
+<div class="callout danger">
+    <strong>Common mistake: changing a cached object</strong>
+    IMemoryCache stores a <b>reference</b> to your object, not a copy. If code does <code>var p = cache.Get&lt;Product&gt;(key); p.Price = 0;</code> then every later reader gets price 0. Cache DTOs that nobody modifies (or immutable records) and never cache EF Core tracked entities.
+</div>
+
+<h2>Read the code</h2>
+<ul class="code-ref">
+    <li><code>Caching.Core/Controllers/Api/MemoryCacheController.cs</code>: the endpoints this page calls.</li>
+    <li><code>Caching.Business/Service/Implementation/MemoryCacheBasicService.cs</code>: the cache-aside logic and statistics.</li>
+    <li><code>Caching.Business/Constant/CacheKeys.cs</code>: how keys are built.</li>
+    <li><code>Caching.Business/Dto/CachedValue.cs</code>: the wrapper that records cache times.</li>
+    <li><code>Caching.Business/DependencyInjection.cs</code>: <code>AddMemoryCache</code> registration.</li>
+    <li><code>Caching.Infrastructure/Repository/Implementation/ProductRepository.cs</code>: the slow Dapper read and the EF Core update.</li>
+</ul>
+
+<div class="next-link"><a class="btn primary" href="/Level1/Expiration">Next: Expiration &rarr;</a></div>
+
+@section Scripts {
+    <script src="~/js/level1/first-cache.js" asp-append-version="true"></script>
+}

@@ -1,0 +1,149 @@
+@{
+    ViewData["Title"] = "Size limits and eviction";
+    ViewData["Lesson"] = "l1-eviction";
+}
+
+<h1>1.4 Size limits, priorities and eviction</h1>
+<p class="lead">Memory is not infinite. You will see what happens when a cache is full, which entries get thrown out first, and how to be notified when it happens.</p>
+
+<h2>Expiration vs eviction</h2>
+<div class="grid grid-2">
+    <div class="card"><b>Expiration</b><p class="muted">Time based, decided by you in advance: "this entry is valid for 60 seconds".</p></div>
+    <div class="card"><b>Eviction</b><p class="muted">Any removal of an entry: because it expired, because you removed or replaced it, or because the cache needed room.</p></div>
+</div>
+
+<h2>Why a cache without a limit is dangerous</h2>
+<p>By default IMemoryCache has <b>no size limit</b>. If your keys come from user input (search terms, page numbers, user ids), the number of entries can grow without end until the process runs out of memory and crashes. In production, any cache with an open-ended set of keys needs a limit.</p>
+
+<h2>How size limits work in IMemoryCache</h2>
+<ul>
+    <li>You set <code>SizeLimit</code> on the cache. It has <b>no unit</b>: you decide what 1 means (1 entry, 1 KB, 1 row...).</li>
+    <li>Once <code>SizeLimit</code> is set, <b>every</b> entry must declare its <code>Size</code>, otherwise <code>Set</code> throws an exception. That is why this demo uses its own cache instance instead of the shared one.</li>
+    <li>When a new entry would go over the limit, it is <b>not stored</b> (it is evicted with reason <code>Capacity</code>), and a <b>compaction</b> starts in the background.</li>
+    <li>Compaction removes entries until it has freed <code>CompactionPercentage</code> of the limit. This demo uses 50%, which frees at least 5 of 10 units.</li>
+</ul>
+<div class="callout warn">
+    <strong>Surprise for many developers</strong>
+    IMemoryCache does not make room for the new entry first. The entry that caused the overflow is thrown away, and room is made for <em>future</em> entries. Many other caches (and Redis) evict old entries to fit the new one instead.
+</div>
+
+<h2>Which entries are removed first?</h2>
+<p>During compaction IMemoryCache removes, in this order:</p>
+<div class="flow">
+    <div class="flow-step"><b>1. Expired</b><small>Already dead anyway</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><b>2. Low</b><small>priority</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><b>3. Normal</b><small>priority (the default)</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><b>4. High</b><small>priority</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step hit"><b>Never removed</b><small><code>NeverRemove</code></small></div>
+</div>
+<p>Inside the same priority, the entry that was <b>least recently used</b> (read the longest time ago) goes first. That is the LRU rule.</p>
+
+<h2>Live demo</h2>
+<p>This cache has <code>SizeLimit = 10</code> and <code>CompactionPercentage = 0.5</code>.</p>
+<div class="card">
+    <div class="toolbar">
+        <label class="field">Key<input id="key" value="item-1" size="10" /></label>
+        <label class="field">Size<input id="size" type="number" min="1" max="20" value="2" style="width:80px" /></label>
+        <label class="field">Priority
+            <select id="priority">
+                <option>Low</option>
+                <option selected>Normal</option>
+                <option>High</option>
+                <option>NeverRemove</option>
+            </select>
+        </label>
+        <button class="btn primary" id="btnAdd">Add entry</button>
+    </div>
+    <div class="toolbar">
+        <button class="btn" id="btnFill">Fill with sample entries</button>
+        <button class="btn" id="btnCompact">Compact 50% now</button>
+        <button class="btn danger" id="btnClear">Clear cache</button>
+        <button class="btn" id="btnRefresh">Refresh</button>
+    </div>
+    <p id="message" class="muted"></p>
+    <div><b id="usage">0 / 10</b> <span class="muted">units used</span></div>
+    <div class="meter"><div id="meter" style="width:0%"></div></div>
+</div>
+
+<div class="card">
+        <b>Entries in the cache</b>
+        <table>
+            <thead><tr><th>Key</th><th>Size</th><th>Priority</th><th>Last used</th><th></th></tr></thead>
+            <tbody id="entries"></tbody>
+        </table>
+</div>
+<div class="card">
+    <b>Event log</b> <span class="muted">(eviction callbacks, newest first)</span>
+    <div class="events">
+        <table>
+            <thead><tr><th>Time</th><th>Event</th><th>Key</th><th>Detail</th></tr></thead>
+            <tbody id="events"></tbody>
+        </table>
+    </div>
+</div>
+
+<h2>Experiments</h2>
+<ol class="steps">
+    <li><b>Fill it up.</b> Click <em>Clear cache</em>, then <em>Fill with sample entries</em>. It adds five entries of size 2 (one Low, three Normal, one High), so the cache is exactly 10 / 10.</li>
+    <li><b>Overflow.</b> Add a new entry with size 2. It is <span class="badge rejected">Rejected</span>. Then watch the log: compaction removes the <b>Low</b> entry first, then the <b>oldest Normal</b> entries, until at least 5 units are free.</li>
+    <li><b>LRU inside a priority.</b> Fill again. Click <em>Use</em> on the first Normal entry so it becomes the most recently used. Click <em>Compact 50% now</em>. This time the other Normal entries are removed before the one you used.</li>
+    <li><b>Protected entries.</b> Add an entry with priority <code>NeverRemove</code>, then compact several times. It survives every compaction. It is still removed by expiration or <code>Remove</code>, and it still counts toward the limit, so use it rarely.</li>
+    <li><b>Too big.</b> Clear the cache and add an entry with size 11. It can never fit, so it is rejected immediately.</li>
+</ol>
+
+<h2>Eviction callbacks</h2>
+<p>Every log line marked <span class="badge evicted">Evicted</span> came from a <b>post-eviction callback</b>:</p>
+<pre><code>options.RegisterPostEvictionCallback((key, value, reason, state) =&gt;
+    log.Add(key.ToString()!, "Evicted", $"Reason: {reason}"));</code></pre>
+<p>The <code>reason</code> tells you why the entry left:</p>
+<table class="card">
+    <thead><tr><th>EvictionReason</th><th>Meaning</th></tr></thead>
+    <tbody>
+        <tr><td><code>Removed</code></td><td>Your code called <code>Remove</code>.</td></tr>
+        <tr><td><code>Replaced</code></td><td><code>Set</code> was called again with the same key.</td></tr>
+        <tr><td><code>Expired</code></td><td>Its absolute or sliding time ran out.</td></tr>
+        <tr><td><code>TokenExpired</code></td><td>One of its expiration tokens was triggered.</td></tr>
+        <tr><td><code>Capacity</code></td><td>Removed by compaction, or rejected because the cache was full.</td></tr>
+    </tbody>
+</table>
+<p>Typical uses: logging and metrics (how often are we evicting for capacity? then the limit is too small), and releasing resources tied to the entry. Callbacks run on a background thread after the removal, so keep them short and never assume they run instantly.</p>
+
+<h2>Eviction policies in general</h2>
+<p>Every cache needs a rule for choosing what to remove when full. You will meet these names again with Redis in Level 5.</p>
+<table class="card">
+    <thead><tr><th>Policy</th><th>Removes</th><th>Good for</th></tr></thead>
+    <tbody>
+        <tr><td><b>LRU</b> (least recently used)</td><td>The entry read the longest time ago</td><td>Most workloads. Recently used data is likely to be used again.</td></tr>
+        <tr><td><b>LFU</b> (least frequently used)</td><td>The entry read the fewest times</td><td>Stable popular items that should survive short bursts of one-off reads.</td></tr>
+        <tr><td><b>FIFO</b> (first in, first out)</td><td>The oldest inserted entry</td><td>Simple, but ignores how popular an entry is.</td></tr>
+        <tr><td><b>TTL based</b></td><td>The entry closest to expiring</td><td>When all entries have TTLs and freshness matters most.</td></tr>
+        <tr><td><b>Random</b></td><td>Any entry</td><td>Very cheap, surprisingly OK when access is uniform.</td></tr>
+        <tr><td><b>Priority + LRU</b></td><td>Lowest priority first, LRU inside it</td><td>What IMemoryCache does.</td></tr>
+    </tbody>
+</table>
+
+<h2>What you should take away</h2>
+<div class="callout tip">
+    <strong>Key points</strong>
+    Always bound a cache whose keys are not a small fixed set. In IMemoryCache, setting <code>SizeLimit</code> means every entry needs a <code>Size</code>. When full, the new entry is rejected and compaction removes expired, then Low, Normal and High entries, least recently used first. Use eviction callbacks to log and measure evictions. If you see many <code>Capacity</code> evictions, the cache is too small or you are caching the wrong things.
+</div>
+
+<h2>Read the code</h2>
+<ul class="code-ref">
+    <li><code>Caching.Business/Service/Implementation/EvictionService.cs</code>: the dedicated <code>MemoryCache</code> with <code>SizeLimit</code>, <code>Size</code> and <code>Priority</code> per entry, compaction, and the eviction callback.</li>
+    <li><code>Caching.Business/Service/Implementation/CacheEventLog.cs</code>: the in-memory event log this portal displays.</li>
+    <li><code>Caching.Core/Controllers/Api/EvictionController.cs</code>: the endpoints.</li>
+</ul>
+
+<div class="callout">
+    <strong>Level 1 complete</strong>
+    You now know what a cache is, how cache-aside works with IMemoryCache, how expiration and eviction remove data, and why a cache is always a stale-able copy. Level 2 moves out of the server and into HTTP caching in the browser and CDN.
+</div>
+
+@section Scripts {
+    <script src="~/js/level1/eviction.js" asp-append-version="true"></script>
+}

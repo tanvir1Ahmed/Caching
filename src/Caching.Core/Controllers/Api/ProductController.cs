@@ -2,7 +2,7 @@ using Caching.Business.Dto;
 using Caching.Business.Service.Interface;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Caching.Core.Controllers;
+namespace Caching.Core.Controllers.Api;
 
 [ApiController]
 [Route("api/[controller]")]
