@@ -133,3 +133,15 @@ async function renderRedisStatus(element) {
 function redisErrorHtml(result) {
     return `<div class="callout danger"><strong>Redis is not available</strong>${escapeHtml(result.data?.error ?? "Unknown error")}</div>`;
 }
+
+(() => {
+    const toggle = document.querySelector(".menu-toggle");
+    if (!toggle) return;
+    const setOpen = open => {
+        document.body.classList.toggle("menu-open", open);
+        toggle.setAttribute("aria-expanded", String(open));
+    };
+    toggle.addEventListener("click", () => setOpen(!document.body.classList.contains("menu-open")));
+    document.querySelector(".sidebar-backdrop")?.addEventListener("click", () => setOpen(false));
+    document.addEventListener("keydown", e => { if (e.key === "Escape") setOpen(false); });
+})();

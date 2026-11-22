@@ -11,6 +11,7 @@
 </head>
 <body>
     <header class="topbar">
+        <button class="menu-toggle" type="button" aria-label="Open lessons menu" aria-expanded="false">&#9776; Lessons</button>
         <a class="brand" href="/">Caching Academy</a>
         <nav class="topbar-links">
             <a href="/swagger" target="_blank">Swagger</a>
@@ -57,6 +58,7 @@
             <a class="nav-item @(lesson == "l7-multilevel" ? "active" : "")" href="/Level7/MultiLevel">7.4 Hot keys and multi-level caching</a>
             <a class="nav-item @(lesson == "l7-monitoring" ? "active" : "")" href="/Level7/Monitoring">7.5 Monitoring and other technologies</a>
         </aside>
+        <div class="sidebar-backdrop"></div>
         <main class="content">
             @RenderBody()
         </main>

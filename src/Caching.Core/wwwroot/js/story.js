@@ -16,6 +16,14 @@ const StoryPlayer = (() => {
     const players = new Map();
     let recordings = {};
     const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+    const fit = (element, max) => {
+        element.removeAttribute("textLength");
+        element.removeAttribute("lengthAdjust");
+        if (element.textContent && element.getComputedTextLength() > max) {
+            element.setAttribute("textLength", max);
+            element.setAttribute("lengthAdjust", "spacingAndGlyphs");
+        }
+    };
     const list = value => value === undefined ? [] : Array.isArray(value) && Array.isArray(value[0]) ? value : [value];
 
     function svg(name, attributes = {}, parent = null) {
@@ -119,6 +127,7 @@ const StoryPlayer = (() => {
             Object.values(this.nodes).forEach(n => {
                 n.sub.textContent = n.initial;
                 n.labelEl.textContent = n.label;
+                this.fitNode(n);
                 n.group.classList.remove("dim", "hi");
                 n.rect.removeAttribute("style");
             });
@@ -183,11 +192,26 @@ const StoryPlayer = (() => {
             }
         }
 
+        fitNode(n) {
+            fit(n.labelEl, n.w - 50);
+            fit(n.sub, n.w - 50);
+        }
+
+        fitAll() {
+            Object.values(this.nodes).forEach(n => this.fitNode(n));
+        }
+
         applyState(step) {
             list(step.undim).flat().forEach(id => this.nodes[id]?.group.classList.remove("dim"));
             list(step.dim).flat().forEach(id => this.nodes[id]?.group.classList.add("dim"));
-            Object.entries(step.set ?? {}).forEach(([id, text]) => this.nodes[id].sub.textContent = text);
-            Object.entries(step.rename ?? {}).forEach(([id, text]) => this.nodes[id].labelEl.textContent = text);
+            Object.entries(step.set ?? {}).forEach(([id, text]) => {
+                this.nodes[id].sub.textContent = text;
+                this.fitNode(this.nodes[id]);
+            });
+            Object.entries(step.rename ?? {}).forEach(([id, text]) => {
+                this.nodes[id].labelEl.textContent = text;
+                this.fitNode(this.nodes[id]);
+            });
             if (step.clock !== undefined) this.clock.textContent = step.clock;
         }
 
@@ -301,7 +325,7 @@ const StoryPlayer = (() => {
         flash(id, text, tone = "accent") {
             const n = this.nodes[id];
             const color = tones[tone] ?? tone;
-            const widthPx = Math.max(44, text.length * 8 + 20);
+            const widthPx = Math.max(44, text.length * 9 + 20);
             const above = n.y - n.h / 2 - 6;
             const y = above < 26 ? n.y + n.h / 2 + 28 : above;
             const group = svg("g", { class: "story-flash", transform: `translate(${n.x},${y})` }, this.fxLayer);
@@ -326,6 +350,7 @@ const StoryPlayer = (() => {
             if (!scene) return;
             const player = new Player(container, scene);
             players.set(container.dataset.story, player);
+            player.fitAll();
             if (!("IntersectionObserver" in window)) return;
             const observer = new IntersectionObserver(entries => {
                 if (entries.some(e => e.isIntersecting)) {
@@ -370,6 +395,7 @@ const StoryPlayer = (() => {
     return {
         mountAll: () => {
             mountAll();
+            window.matchMedia("(max-width: 860px)").addEventListener("change", () => players.forEach(p => p.fitAll()));
             animateFlows();
             fetch("/audio/story/recordings.json", { cache: "no-cache" })
                 .then(response => response.ok ? response.json() : {})
