@@ -1,0 +1,118 @@
+@{
+    ViewData["Title"] = "IDistributedCache and Redis";
+    ViewData["Lesson"] = "l4-distributed";
+}
+
+<h1>4.2 IDistributedCache and Redis</h1>
+<p class="lead"><code>IDistributedCache</code> is the .NET abstraction for a shared cache. Your code talks to the interface, and configuration decides whether the bytes go to Redis, SQL Server or local memory.</p>
+
+<h2>The interface</h2>
+<p>It is deliberately small. It stores <b>byte arrays</b> (plus string helpers), with absolute and sliding expiration:</p>
+<pre><code>Task&lt;byte[]?&gt; GetAsync(string key);
+Task SetAsync(string key, byte[] value, DistributedCacheEntryOptions options);
+Task RefreshAsync(string key);
+Task RemoveAsync(string key);</code></pre>
+<p><code>RefreshAsync</code> resets the sliding expiration without reading the value. There is no "get or create", no tags and no stampede protection: those come with HybridCache in lesson 4.4.</p>
+
+<h2>Implementations</h2>
+<div class="card">
+    <table>
+        <thead><tr><th>Registration</th><th>Storage</th><th>When to use</th></tr></thead>
+        <tbody>
+            <tr><td><code>AddStackExchangeRedisCache</code></td><td>Redis</td><td>The usual production choice. Fast, rich features.</td></tr>
+            <tr><td><code>AddDistributedSqlServerCache</code></td><td>A SQL Server table</td><td>You already have SQL Server and want no new infrastructure. Slower than Redis.</td></tr>
+            <tr><td><code>AddDistributedMemoryCache</code></td><td>Local memory</td><td>Development and tests. Not really distributed. This project falls back to it when no Redis is configured.</td></tr>
+            <tr><td>Others (NCache, Cosmos DB, PostgreSQL...)</td><td>Varies</td><td>Community and vendor packages implementing the same interface.</td></tr>
+        </tbody>
+    </table>
+</div>
+<p>In this project <code>Caching.Infrastructure/DependencyInjection.cs</code> decides:</p>
+<pre><code>if (redis.IsConfigured)
+    services.AddStackExchangeRedisCache(options =&gt;
+    {
+        options.InstanceName = "caching-academy:";
+        options.ConnectionMultiplexerFactory = () =&gt; Task.FromResult(redis.Multiplexer);
+    });
+else
+    services.AddDistributedMemoryCache();</code></pre>
+<p><code>InstanceName</code> is a prefix added to every key, which keeps this app's keys apart from anything else in the same Redis database. The factory reuses the app's single Redis connection: <code>ConnectionMultiplexer</code> is designed to be created once and shared.</p>
+
+<h2>How Redis stores an IDistributedCache entry</h2>
+<p>Each entry is a Redis <b>hash</b> with three fields: <code>data</code> (your bytes), <code>absexp</code> (absolute expiry in ticks) and <code>sldexp</code> (sliding window in ticks). Redis's own TTL on the key is set to the sliding window, and refreshed on each read. Use the inspector below to see a real entry.</p>
+
+<h2>A cache must fail open</h2>
+<p>Redis is a separate server, reached over the network. It can be slow, restarting or unreachable. A cache is an optimization, so when it fails the app should <b>fall back to the database</b>, not return errors. <code>DistributedProductService</code> wraps every cache call:</p>
+<pre><code>try
+{
+    var bytes = await cache.GetAsync(key);
+    ...
+}
+catch (Exception ex) when (ex is not OperationCanceledException)
+{
+    var product = await repository.GetByIdAsync(id);
+    return product.ToResult("Database", key, stopwatch, "Cache unavailable, the app kept working");
+}</code></pre>
+<p>Timeouts matter too: the Redis connection uses 2-second timeouts, so a dead Redis costs each request at most about 2 seconds, not the default 5. Level 7 adds circuit-breaker ideas.</p>
+
+<h2>Live demo</h2>
+<div id="redisStatus"></div>
+<div class="card">
+    <div class="toolbar">
+        <label class="field">Product
+            <select id="productId"></select>
+        </label>
+        <button class="btn primary" id="btnGet">Get</button>
+        <button class="btn" id="btnRefresh">Refresh (reset sliding)</button>
+        <button class="btn danger" id="btnRemove">Remove</button>
+        <button class="btn" id="btnInspect">Inspect in Redis</button>
+    </div>
+    <div class="result-box" id="result">-</div>
+</div>
+<div class="grid grid-2">
+    <div class="card">
+        <b>Redis entry</b> <span class="muted">(read directly from Redis with HGETALL and TTL)</span>
+        <table class="kv"><tbody id="entry"><tr><td class="muted">Click Inspect.</td></tr></tbody></table>
+    </div>
+    <div class="card">
+        <b>Event log</b>
+        <div class="events">
+            <table>
+                <thead><tr><th>Time</th><th>Event</th><th>Key</th><th>Detail</th></tr></thead>
+                <tbody id="events"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<h2>Experiments</h2>
+<ol class="steps">
+    <li><b>Miss and hit.</b> Click <em>Get</em> twice. The hit takes about 1 to 5 ms (or more on the free cloud Redis, depending on distance), much slower than IMemoryCache's microseconds, but much faster than the 800 ms database.</li>
+    <li><b>Look inside Redis.</b> Click <em>Inspect in Redis</em>. You see the key with the <code>caching-academy:</code> prefix removed, its type <code>hash</code>, the TTL and the three fields. <code>data</code> is the JSON of the product.</li>
+    <li><b>Sliding expiration.</b> Inspect again a few seconds later: the TTL goes down. Click <em>Refresh</em> and inspect: the TTL is back to about 30 seconds. Reading with <em>Get</em> also refreshes it. The entry still dies after 120 seconds at most (absolute).</li>
+    <li><b>Restart survival.</b> If you run the app locally, restart it and click <em>Get</em>: still a hit. The cache lives in Redis, not in the app.</li>
+    <li><b>Failure.</b> If Redis is unreachable, <em>Get</em> still returns the product from the database with a note. Nothing breaks.</li>
+</ol>
+
+<h2>What you should take away</h2>
+<div class="callout tip">
+    <strong>Key points</strong>
+    Code against <code>IDistributedCache</code> and choose the store in configuration. It stores bytes, so you serialize yourself. Reuse one Redis connection, prefix your keys, set short timeouts and always fall back to the source when the cache fails.
+</div>
+<div class="callout danger">
+    <strong>Common mistakes</strong>
+    Creating a new <code>ConnectionMultiplexer</code> per request (it is expensive and exhausts connections). Letting a Redis outage turn into a site outage. Forgetting that a hit now costs a network round trip, so caching tiny, cheap values in Redis can be slower than just computing them.
+</div>
+
+<h2>Read the code</h2>
+<ul class="code-ref">
+    <li><code>Caching.Business/Service/Implementation/DistributedProductService.cs</code>: cache-aside with <code>IDistributedCache</code>, the fallback, and the inspector.</li>
+    <li><code>Caching.Infrastructure/Data/RedisConnection.cs</code>: one lazy, shared connection with short timeouts.</li>
+    <li><code>Caching.Infrastructure/Repository/Implementation/RedisRepository.cs</code>: direct Redis commands used to inspect entries.</li>
+    <li><code>Caching.Infrastructure/DependencyInjection.cs</code>: choosing Redis or the memory fallback.</li>
+</ul>
+
+<div class="next-link"><a class="btn primary" href="/Level4/Serialization">Next: Serialization &rarr;</a></div>
+
+@section Scripts {
+    <script src="~/js/level4/distributed-cache.js" asp-append-version="true"></script>
+}

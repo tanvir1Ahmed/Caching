@@ -1,0 +1,121 @@
+@{
+    ViewData["Title"] = "Why distributed caching?";
+    ViewData["Lesson"] = "l4-index";
+}
+
+<h1>4.1 Why distributed caching?</h1>
+<p class="lead">An in-memory cache works perfectly on one server. As soon as you run two or more copies of your app, each copy has its own cache, and they start to disagree.</p>
+
+<h2>The problem with many servers</h2>
+<p>Production apps usually run several instances behind a load balancer, for capacity and so that one crash does not take the site down. Each instance has its own <code>IMemoryCache</code>:</p>
+<div class="flow">
+    <div class="flow-step"><b>Load balancer</b><small>Sends each request to any server</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><b>Server A</b><small>Own memory cache</small></div>
+    <div class="flow-arrow">+</div>
+    <div class="flow-step"><b>Server B</b><small>Own memory cache</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step miss"><b>Database</b></div>
+</div>
+<ul>
+    <li><b>Inconsistency:</b> when server A updates a product and clears <b>its</b> cache, server B still serves the old price. Users see different prices depending on which server answers.</li>
+    <li><b>Duplicate work:</b> each server misses and loads the same data separately. With 10 servers the database does 10 times the cache-filling work.</li>
+    <li><b>Cold starts:</b> every deployment or restart starts with an empty cache on every server.</li>
+</ul>
+
+<h2>The solution: one shared cache</h2>
+<p>A <b>distributed cache</b> is a separate service (usually Redis) that all servers talk to over the network. There is one copy of each entry, so one removal is seen by everyone, and the cache survives app restarts.</p>
+<div class="flow">
+    <div class="flow-step"><b>Server A</b></div>
+    <div class="flow-arrow">+</div>
+    <div class="flow-step"><b>Server B</b></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step hit"><b>Redis</b><small>One shared cache</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step miss"><b>Database</b></div>
+</div>
+<div class="card">
+    <table>
+        <thead><tr><th></th><th>In-memory (IMemoryCache)</th><th>Distributed (Redis)</th></tr></thead>
+        <tbody>
+            <tr><td><b>Speed of a hit</b></td><td>Microseconds</td><td>About 0.2 to 2 ms (network round trip)</td></tr>
+            <tr><td><b>Shared between servers</b></td><td>No</td><td>Yes</td></tr>
+            <tr><td><b>Survives app restart</b></td><td>No</td><td>Yes</td></tr>
+            <tr><td><b>Stores</b></td><td>Object references</td><td>Bytes, so objects must be serialized (lesson 4.3)</td></tr>
+            <tr><td><b>Can fail separately</b></td><td>No</td><td>Yes, your app must keep working without it</td></tr>
+        </tbody>
+    </table>
+</div>
+<p>Lesson 4.4 shows how to get the best of both with a two-level cache.</p>
+
+<h2>Live demo: two servers in one app</h2>
+<p>This app runs as a single process, so the demo <b>simulates</b> two servers: server A and server B each have their own private <code>MemoryCache</code>, and both share the app's <code>IDistributedCache</code>.</p>
+<div id="redisStatus"></div>
+<div class="card">
+    <div class="toolbar">
+        <label class="field">Product
+            <select id="productId"></select>
+        </label>
+        <label class="field">Cache mode
+            <select id="mode">
+                <option value="false">Each server's own memory cache</option>
+                <option value="true">Shared distributed cache</option>
+            </select>
+        </label>
+        <button class="btn" id="btnReset">Reset caches</button>
+        <button class="btn" id="btnDb">Read the database directly</button>
+        <span id="dbPrice" class="muted"></span>
+    </div>
+</div>
+<div class="grid grid-2">
+    @foreach (var server in new[] { "A", "B" })
+    {
+        <div class="card" data-server="@server">
+            <b>Server @server</b>
+            <div class="toolbar">
+                <button class="btn primary" data-role="read">Read through server @server</button>
+                <button class="btn" data-role="update">Update price through server @server</button>
+            </div>
+            <div class="result-box" data-role="result">-</div>
+        </div>
+    }
+</div>
+<div class="card">
+    <b>Event log</b>
+    <div class="events">
+        <table>
+            <thead><tr><th>Time</th><th>Event</th><th>Key</th><th>Detail</th></tr></thead>
+            <tbody id="events"></tbody>
+        </table>
+    </div>
+</div>
+
+<h2>Experiments</h2>
+<ol class="steps">
+    <li><b>Own memory caches.</b> Keep mode "Each server's own memory cache". Read through A and through B. Both miss once, then hit. Note that the database was read <b>twice</b> for the same product.</li>
+    <li><b>Break consistency.</b> Update the price through server A, then read through A: new price. Read through B: <b>old price</b>. Server B never heard about the change. This is the bug users report as "the price keeps changing when I refresh".</li>
+    <li><b>Shared cache.</b> Click <em>Reset caches</em> and switch to "Shared distributed cache". Read through A (miss), then through B: <b>hit</b>. B used the entry A created.</li>
+    <li><b>Consistency restored.</b> Update through A, then read through B. B misses and loads the new price, because A removed the one shared entry.</li>
+</ol>
+
+<h2>What you should take away</h2>
+<div class="callout tip">
+    <strong>Key points</strong>
+    In-memory caches are per process. With several servers they disagree after updates and repeat each other's work. A distributed cache gives every server one shared copy, at the cost of a network round trip, serialization, and one more system that can fail.
+</div>
+<div class="callout danger">
+    <strong>Common mistakes</strong>
+    Testing caching on one developer machine and shipping to several servers. Treating Redis as always available: if it is down, the app should slow down, not crash (lesson 4.2 shows this).
+</div>
+
+<h2>Read the code</h2>
+<ul class="code-ref">
+    <li><code>Caching.Business/Service/Implementation/TwoServerService.cs</code>: two private <code>MemoryCache</code> instances and the shared <code>IDistributedCache</code>.</li>
+    <li><code>Caching.Infrastructure/DependencyInjection.cs</code>: Redis when configured, <code>AddDistributedMemoryCache</code> otherwise.</li>
+</ul>
+
+<div class="next-link"><a class="btn primary" href="/Level4/DistributedCache">Next: IDistributedCache and Redis &rarr;</a></div>
+
+@section Scripts {
+    <script src="~/js/level4/two-servers.js" asp-append-version="true"></script>
+}

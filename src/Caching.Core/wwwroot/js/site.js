@@ -118,6 +118,18 @@ function productOptions(count) {
     return names.slice(0, count).map((name, i) => `<option value="${i + 1}">${i + 1} - ${name}</option>`).join("");
 }
 
+async function renderRedisStatus(element) {
+    const status = (await Api.call("GET", "/api/redis/status")).data ?? {};
+    if (!status.configured) {
+        element.innerHTML = `<div class="callout warn"><strong>Redis is not configured</strong>The distributed cache is using <code>${escapeHtml(status.distributedCacheProvider)}</code> (in-process memory) as a fallback. The demos still run, but nothing is shared between servers. Set <code>ConnectionStrings:Redis</code> to use real Redis.</div>`;
+    } else if (!status.connected) {
+        element.innerHTML = `<div class="callout danger"><strong>Redis is configured but not reachable</strong>${escapeHtml(status.error ?? "")}<br />The app keeps working by reading the database, which is exactly what a good cache client should do.</div>`;
+    } else {
+        element.innerHTML = `<div class="callout tip"><strong>Connected to Redis ${escapeHtml(status.serverVersion)}</strong>Ping ${status.pingMs} ms, memory used ${escapeHtml(status.usedMemory)}. Distributed cache provider: <code>${escapeHtml(status.distributedCacheProvider)}</code>.</div>`;
+    }
+    return status;
+}
+
 function redisErrorHtml(result) {
     return `<div class="callout danger"><strong>Redis is not available</strong>${escapeHtml(result.data?.error ?? "Unknown error")}</div>`;
 }

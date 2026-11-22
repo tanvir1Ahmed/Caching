@@ -1,3 +1,4 @@
+using Caching.Infrastructure.Data;
 using Caching.Infrastructure.Data.DbContext;
 using Caching.Infrastructure.Repository.Implementation;
 using Caching.Infrastructure.Repository.Interface;
@@ -16,11 +17,22 @@ public static class DependencyInjection
             options.UseSqlite(configuration.GetConnectionString("DefaultConnection")));
         services.AddScoped<IProductRepository, ProductRepository>();
 
-        var redisConnection = configuration.GetConnectionString("Redis");
-        if (!string.IsNullOrWhiteSpace(redisConnection))
+        var redis = new RedisConnection(configuration.GetConnectionString("Redis"));
+        services.AddSingleton(redis);
+        services.AddSingleton<IRedisRepository, RedisRepository>();
+
+        if (redis.IsConfigured)
         {
-            services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisConnection));
-            services.AddStackExchangeRedisCache(options => options.Configuration = redisConnection);
+            services.AddSingleton<IConnectionMultiplexer>(_ => redis.Multiplexer);
+            services.AddStackExchangeRedisCache(options =>
+            {
+                options.InstanceName = RedisConnection.KeyPrefix;
+                options.ConnectionMultiplexerFactory = () => Task.FromResult(redis.Multiplexer);
+            });
+        }
+        else
+        {
+            services.AddDistributedMemoryCache();
         }
 
         return services;

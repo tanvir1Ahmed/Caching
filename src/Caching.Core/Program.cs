@@ -1,5 +1,7 @@
 using System.Text.Json.Serialization;
 using Caching.Business;
+using Caching.Infrastructure.Exceptions;
+using Microsoft.AspNetCore.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +18,15 @@ builder.Services.AddOutputCache(options =>
 builder.Services.AddBusiness(builder.Configuration);
 
 var app = builder.Build();
+
+app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
+{
+    var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+    context.Response.StatusCode = exception is CacheUnavailableException
+        ? StatusCodes.Status503ServiceUnavailable
+        : StatusCodes.Status500InternalServerError;
+    await context.Response.WriteAsJsonAsync(new { error = exception?.Message });
+}));
 
 app.Services.ApplyDatabaseMigrations();
 

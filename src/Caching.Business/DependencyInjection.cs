@@ -5,6 +5,7 @@ using Caching.Business.Service.Implementation;
 using Caching.Business.Service.Interface;
 using Caching.Infrastructure;
 using Caching.Infrastructure.Repository.Interface;
+using Microsoft.Extensions.Caching.Hybrid;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -43,6 +44,17 @@ public static class DependencyInjection
         services.AddHostedService<WriteBehindWorker>();
         services.AddSingleton<IRefreshAheadService, RefreshAheadService>();
         services.AddSingleton<IStrategyCacheService, StrategyCacheService>();
+
+        services.AddHybridCache(options => options.DefaultEntryOptions = new HybridCacheEntryOptions
+        {
+            Expiration = TimeSpan.FromSeconds(60),
+            LocalCacheExpiration = TimeSpan.FromSeconds(20)
+        });
+        services.AddScoped<IRedisStatusService, RedisStatusService>();
+        services.AddSingleton<ITwoServerService, TwoServerService>();
+        services.AddScoped<IDistributedProductService, DistributedProductService>();
+        services.AddSingleton<ISerializationService, SerializationService>();
+        services.AddSingleton<IHybridProductService, HybridProductService>();
 
         return services;
     }

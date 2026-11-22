@@ -9,6 +9,8 @@ public class RequestCounter : IRequestCounter
 
     public long Increment(string scope) => counters.AddOrUpdate(scope, 1, (_, value) => value + 1);
 
+    public long Get(string scope) => counters.GetValueOrDefault(scope);
+
     public IDictionary<string, long> GetAll() => new Dictionary<string, long>(counters);
 
     public void Reset() => counters.Clear();

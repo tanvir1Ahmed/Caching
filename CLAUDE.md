@@ -13,8 +13,8 @@ This repository is a **caching course**. The user is learning caching from begin
 | 1 | Fundamentals: what caching is, IMemoryCache + cache-aside, expiration, size limits and eviction | Done |
 | 2 | HTTP caching: Cache-Control, ETag, Last-Modified, response caching, output caching, CDN concepts | Done |
 | 3 | Strategies: cache-aside, read-through, write-through, write-behind, write-around, refresh-ahead | Done |
-| 4 | Distributed caching: IDistributedCache (Redis, SQL), HybridCache, serialization | Next |
-| 5 | Redis in depth: data types, Pub/Sub, distributed locks, rate limiting, eviction policies, persistence, replication, cluster | Planned |
+| 4 | Distributed caching: IDistributedCache (Redis, SQL), HybridCache, serialization | Done |
+| 5 | Redis in depth: data types, Pub/Sub, distributed locks, rate limiting, eviction policies, persistence, replication, cluster | Next |
 | 6 | Invalidation and consistency: time, event, tag and version based invalidation, stale data | Planned |
 | 7 | Advanced: stampede, penetration, avalanche, hot keys, multi-level cache, Bloom filter, monitoring, Memcached, NCache, EF Core second-level cache | Planned |
 
@@ -62,6 +62,8 @@ src/
       Entity/                       database table classes
       DbContext/                    DbContext class
       Migrations/                   EF Core migrations
+      RedisConnection.cs            single lazy Redis connection (key prefix, timeouts, AllowAdmin)
+    Exceptions/                     CacheUnavailableException
 ```
 
 ## Layer rules
@@ -90,11 +92,14 @@ Every lesson view follows the same structure:
 ## Redis
 - Connection string key: `ConnectionStrings:Redis`, in StackExchange.Redis format (`host:port,user=...,password=...,abortConnect=false`), not the `redis://` URI format.
 - By the user's explicit decision, the Redis Cloud connection string is stored in `src/Caching.Core/appsettings.json` and committed, even though the repository is public. The user knows the risk and will move it to a Render environment variable or user secrets later. Do not move or remove it unless the user asks.
-- `AddInfrastructure` registers `IConnectionMultiplexer` and `AddStackExchangeRedisCache` only when the connection string is not empty. Redis features must handle Redis not being configured or not reachable.
-- The Claude cloud sandbox cannot reach the Redis host, so Redis code cannot be tested live from there.
+- `RedisConnection` (Infrastructure/Data) owns the one lazy `ConnectionMultiplexer` with `AllowAdmin = true` (needed for INFO and key scans), `AbortOnConnectFail = false` and 2-3 second timeouts. All Redis keys use the prefix `caching-academy:` (`RedisConnection.KeyPrefix`, also the `IDistributedCache` `InstanceName`).
+- `AddInfrastructure` registers `RedisConnection`, `IRedisRepository` (direct Redis commands, used by Business) and, when Redis is configured, `IConnectionMultiplexer` plus `AddStackExchangeRedisCache` sharing that connection. Without Redis it registers `AddDistributedMemoryCache` so `IDistributedCache` and `HybridCache` always work.
+- `RedisRepository` wraps every Redis error in `CacheUnavailableException`. `Program.cs` has a global exception handler that turns it into HTTP 503 with `{ error }` JSON. Services using `IDistributedCache` catch failures themselves and fall back to the database (a cache must fail open).
+- Business `IRedisStatusService` (`GET api/redis/status`) reports configured/connected/ping; portal pages show it with `renderRedisStatus` from `site.js`.
+- The Claude cloud sandbox cannot reach the Redis Cloud host. Test Redis code against a local server instead: `apt-get install redis-server`, `redis-server --daemonize yes`, then run the app with `ConnectionStrings__Redis=localhost:6379`.
 
 ## Packages
-- All Microsoft.* packages (EF Core, Extensions) must stay on version `10.0.x` (currently `10.0.15`). Version 11.x targets net11.0 and does not work on net10.0.
+- All Microsoft.* packages (EF Core, Extensions) must stay on version `10.0.x` (currently `10.0.15`). Version 11.x targets net11.0 and does not work on net10.0. Exception: `Microsoft.Extensions.Caching.Hybrid` is versioned separately; `10.11.1` targets net10.0.
 - EF Core tools: `dotnet tool install --global dotnet-ef --version 10.0.15`.
 - Add a migration: `dotnet ef migrations add <Name> --project src/Caching.Infrastructure --startup-project src/Caching.Core --output-dir Data/Migrations`, then strip the generated comments.
 

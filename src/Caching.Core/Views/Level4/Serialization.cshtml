@@ -1,0 +1,87 @@
+@{
+    ViewData["Title"] = "Serialization";
+    ViewData["Lesson"] = "l4-serialization";
+}
+
+<h1>4.3 Serialization: turning objects into bytes</h1>
+<p class="lead">A distributed cache only stores bytes. Every write serializes your object and every hit deserializes it again. The format you choose affects size, speed, network cost and how safely you can change your classes.</p>
+
+<h2>Why it matters</h2>
+<ul>
+    <li><b>Size:</b> bigger values mean more Redis memory, more network transfer and slower hits. Redis bills and limits are about memory.</li>
+    <li><b>CPU:</b> serializing and deserializing costs time on every write and every hit. For large objects it can cost more than the network.</li>
+    <li><b>Compatibility:</b> after a deployment, the new code reads bytes written by the old code. If a class changed, deserialization can fail or silently lose data.</li>
+</ul>
+
+<h2>Common formats</h2>
+<div class="card">
+    <table>
+        <thead><tr><th>Format</th><th>Pros</th><th>Cons</th></tr></thead>
+        <tbody>
+            <tr><td><b>JSON</b> (System.Text.Json)</td><td>Readable in Redis tools, built in, tolerant of added or removed properties</td><td>Larger and slower than binary formats</td></tr>
+            <tr><td><b>JSON + compression</b> (GZip, Brotli)</td><td>Often 70-90% smaller for repetitive data</td><td>Extra CPU, not readable, only worth it above a few KB</td></tr>
+            <tr><td><b>MessagePack</b></td><td>Compact binary, very fast</td><td>Extra package, not human readable</td></tr>
+            <tr><td><b>Protocol Buffers</b></td><td>Compact, explicit schema with strong versioning rules</td><td>Needs schema definitions or attributes</td></tr>
+            <tr><td><b>BinaryFormatter</b></td><td>-</td><td><b>Never use it.</b> It is insecure (remote code execution) and removed from modern .NET.</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<h2>Live demo: measure it</h2>
+<p>The server builds a list of products and serializes it in several ways. Times are averages over 50 runs on the server.</p>
+<div class="card">
+    <div class="toolbar">
+        <label class="field">Number of products
+            <select id="count">
+                <option value="1">1</option>
+                <option value="10">10</option>
+                <option value="100" selected>100</option>
+                <option value="1000">1,000</option>
+                <option value="10000">10,000</option>
+            </select>
+        </label>
+        <button class="btn primary" id="btnCompare">Compare formats</button>
+    </div>
+    <table>
+        <thead><tr><th>Format</th><th>Size</th><th>% of compact JSON</th><th>Serialize</th><th>Deserialize</th><th></th></tr></thead>
+        <tbody id="results"><tr><td colspan="6" class="muted">Click Compare formats.</td></tr></tbody>
+    </table>
+</div>
+
+<h2>Experiments</h2>
+<ol class="steps">
+    <li><b>One product.</b> Compare with 1 product. Compression makes it <b>bigger</b>: compression headers cost more than they save on tiny values.</li>
+    <li><b>100 to 10,000 products.</b> Compression shrinks repetitive JSON to a small fraction of its size. That is a big saving in Redis memory and network time, for a small CPU cost.</li>
+    <li><b>Indented JSON.</b> Pretty-printing adds a lot of whitespace for nothing. Never cache indented JSON.</li>
+    <li><b>Custom format.</b> A hand-made "id|name|price" format is small and fast, but brittle: add a field and every cached value breaks. That is why standard formats exist.</li>
+</ol>
+
+<h2>Versioning cached data</h2>
+<p>Imagine you rename <code>Price</code> to <code>UnitPrice</code> and deploy. For the next hour, Redis still holds JSON with <code>"Price"</code>. The new code deserializes it with <code>UnitPrice = 0</code>, and users see free products. Ways to stay safe:</p>
+<ul>
+    <li><b>Version your keys:</b> <code>product:v2:42</code>. New code reads new keys, old entries simply expire.</li>
+    <li><b>Only make additive changes</b> to cached classes (add properties, do not rename or change types).</li>
+    <li><b>Treat deserialization failures as misses:</b> catch the exception, reload from the database, overwrite the entry.</li>
+</ul>
+
+<h2>What you should take away</h2>
+<div class="callout tip">
+    <strong>Key points</strong>
+    Compact JSON is a good default. Add compression for large values (several KB and up). Consider MessagePack or Protobuf when size and speed really matter. Plan for class changes: versioned keys or additive changes, and treat bad cached data as a miss.
+</div>
+<div class="callout danger">
+    <strong>Common mistakes</strong>
+    Caching huge objects (whole tables) as one value, so every hit transfers and deserializes megabytes. Using <code>BinaryFormatter</code>. Caching EF Core entities with navigation properties, which can serialize half the database or fail on cycles.
+</div>
+
+<h2>Read the code</h2>
+<ul class="code-ref">
+    <li><code>Caching.Business/Service/Implementation/SerializationService.cs</code>: the formats and how they are measured.</li>
+    <li><code>Caching.Business/Service/Implementation/DistributedProductService.cs</code>: <code>JsonSerializer.SerializeToUtf8Bytes</code> before <code>SetAsync</code>.</li>
+</ul>
+
+<div class="next-link"><a class="btn primary" href="/Level4/HybridCache">Next: HybridCache &rarr;</a></div>
+
+@section Scripts {
+    <script src="~/js/level4/serialization.js" asp-append-version="true"></script>
+}

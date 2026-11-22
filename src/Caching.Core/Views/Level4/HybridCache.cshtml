@@ -1,0 +1,118 @@
+@{
+    ViewData["Title"] = "HybridCache";
+    ViewData["Lesson"] = "l4-hybrid";
+}
+
+<h1>4.4 HybridCache: memory and Redis together</h1>
+<p class="lead">HybridCache (.NET 9 and later) combines a fast in-memory cache (L1) with a shared distributed cache (L2), adds stampede protection and tag-based removal, and hides it all behind one <code>GetOrCreateAsync</code> call.</p>
+
+<h2>Two levels</h2>
+<div class="flow">
+    <div class="flow-step hit"><b>L1: this server's memory</b><small>Microseconds, per server</small></div>
+    <div class="flow-arrow">&rarr; miss &rarr;</div>
+    <div class="flow-step"><b>L2: distributed cache</b><small>Redis, ~1 ms, shared</small></div>
+    <div class="flow-arrow">&rarr; miss &rarr;</div>
+    <div class="flow-step miss"><b>Factory</b><small>Your code reads the database</small></div>
+</div>
+<p>On a full miss the factory result is written to both L2 and L1. Other servers then find it in L2 and copy it into their own L1. Most hits never leave the process, yet servers still share work.</p>
+
+<h2>What HybridCache adds over IDistributedCache</h2>
+<div class="card">
+    <table>
+        <thead><tr><th>Feature</th><th>IDistributedCache</th><th>HybridCache</th></tr></thead>
+        <tbody>
+            <tr><td><b>API</b></td><td>Get / Set bytes, you write cache-aside yourself</td><td><code>GetOrCreateAsync(key, factory)</code>: read-through (lesson 3.1)</td></tr>
+            <tr><td><b>Serialization</b></td><td>You do it</td><td>Built in (System.Text.Json by default, pluggable)</td></tr>
+            <tr><td><b>Local L1 cache</b></td><td>No</td><td>Yes, with its own shorter expiration</td></tr>
+            <tr><td><b>Stampede protection</b></td><td>No</td><td>Yes: concurrent callers for the same key share one factory call</td></tr>
+            <tr><td><b>Tags</b></td><td>No</td><td>Yes: <code>RemoveByTagAsync("products")</code></td></tr>
+        </tbody>
+    </table>
+</div>
+
+<h2>How it is used here</h2>
+<pre><code>services.AddHybridCache();
+
+var product = await cache.GetOrCreateAsync(
+    $"level4:hybrid:product:{id}",
+    async token =&gt; await LoadFromDatabaseAsync(id),
+    new HybridCacheEntryOptions
+    {
+        Expiration = TimeSpan.FromSeconds(60),
+        LocalCacheExpiration = TimeSpan.FromSeconds(20)
+    },
+    tags: ["products"]);</code></pre>
+<p>HybridCache automatically uses the registered <code>IDistributedCache</code> (Redis here) as L2. Without Redis it still works, with L1 only.</p>
+<div class="callout warn">
+    <strong>L1 on other servers</strong>
+    <code>RemoveAsync</code> and <code>RemoveByTagAsync</code> clear L2 and <b>this</b> server's L1. Other servers keep their L1 copy until <code>LocalCacheExpiration</code> runs out. Keep L1 short, or broadcast removals to all servers with Redis Pub/Sub (Levels 5 and 7).
+</div>
+
+<h2>Live demo</h2>
+<div id="redisStatus"></div>
+<div class="card">
+    <div class="toolbar">
+        <label class="field">Product
+            <select id="productId"></select>
+        </label>
+        <button class="btn primary" id="btnGet">Get</button>
+        <button class="btn" id="btnL2">Get, skipping L1 (as another server would)</button>
+        <button class="btn" id="btnParallel">10 parallel requests</button>
+        <button class="btn danger" id="btnRemove">Remove this key</button>
+        <button class="btn danger" id="btnTag">Remove tag "products"</button>
+    </div>
+    <div class="result-box" id="result">-</div>
+</div>
+<div class="card">
+    <b>History</b>
+    <table>
+        <thead><tr><th>#</th><th>Action</th><th>Source</th><th>Time</th></tr></thead>
+        <tbody id="history"><tr><td colspan="4" class="muted">No requests yet.</td></tr></tbody>
+    </table>
+    <p class="muted">The L1 / L2 label is worked out from timing: answers under 1 ms came from memory. "Skipping L1" uses <code>HybridCacheEntryFlags.DisableLocalCacheRead</code>, so it always reads L2.</p>
+</div>
+<div class="card">
+    <b>Event log</b>
+    <div class="events">
+        <table>
+            <thead><tr><th>Time</th><th>Event</th><th>Key</th><th>Detail</th></tr></thead>
+            <tbody id="events"></tbody>
+        </table>
+    </div>
+</div>
+
+<h2>Experiments</h2>
+<ol class="steps">
+    <li><b>Three levels.</b> Click <em>Get</em> three times: first the database (factory), then L1 in microseconds.</li>
+    <li><b>Another server's view.</b> Click <em>Get, skipping L1</em>. It reads L2 (Redis), a millisecond or so. This is what a second server experiences the first time.</li>
+    <li><b>L1 expires first.</b> Wait 20 seconds and click <em>Get</em>: L1 expired but L2 (60 s) still has it, so it is an L2 hit, copied back into L1.</li>
+    <li><b>Stampede protection.</b> Click <em>Remove this key</em>, then <em>10 parallel requests</em>. Ten concurrent calls, but the factory ran <b>once</b>.</li>
+    <li><b>Tags.</b> Get products 1, 2 and 3, then click <em>Remove tag "products"</em>. All of them miss on the next <em>Get</em>.</li>
+</ol>
+
+<h2>What you should take away</h2>
+<div class="callout tip">
+    <strong>Key points</strong>
+    HybridCache is the recommended cache API for new .NET apps: read-through with <code>GetOrCreateAsync</code>, a fast L1 in front of a shared L2, built-in serialization, stampede protection and tags. Keep <code>LocalCacheExpiration</code> shorter than <code>Expiration</code>, because L1 copies on other servers are not cleared by removals.
+</div>
+<div class="callout danger">
+    <strong>Common mistakes</strong>
+    Long L1 lifetimes on data that changes. Capturing scoped services (like a <code>DbContext</code>) in the factory from a singleton: create a scope inside the factory, as this project does. Caching mutable objects in L1: like IMemoryCache, L1 can hand out the same instance.
+</div>
+
+<div class="callout">
+    <strong>Level 4 complete</strong>
+    You know why multi-server apps need a shared cache, how to use <code>IDistributedCache</code> with Redis safely, how serialization affects it, and how HybridCache combines L1 and L2. Level 5 looks at Redis itself: data types, real use cases, Pub/Sub, locks and running it in production.
+</div>
+
+<h2>Read the code</h2>
+<ul class="code-ref">
+    <li><code>Caching.Business/Service/Implementation/HybridProductService.cs</code>: <code>GetOrCreateAsync</code>, the skip-L1 flag, parallel requests and tag removal.</li>
+    <li><code>Caching.Business/DependencyInjection.cs</code>: <code>AddHybridCache</code> with default entry options.</li>
+</ul>
+
+<div class="next-link"><a class="btn primary" href="/Level5">Next: Level 5, Redis in depth &rarr;</a></div>
+
+@section Scripts {
+    <script src="~/js/level4/hybrid-cache.js" asp-append-version="true"></script>
+}
