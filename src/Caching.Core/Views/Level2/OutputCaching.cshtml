@@ -47,6 +47,7 @@ public async Task&lt;IActionResult&gt; Get(int id)</code></pre>
 <pre><code>await outputCacheStore.EvictByTagAsync("products", cancellationToken);</code></pre>
 
 <h2>Tags: removing a group of responses</h2>
+<div class="story mini" data-story="2.4-tags"></div>
 <p>Every response stored by the <code>Products</code> policy carries the tag <code>products</code>: product 1, product 2, and so on. Evicting the tag removes all of them at once. In a real app you call this right after updating a product, so nobody gets an old price. This is your first taste of <b>invalidation</b>, the subject of Level 6.</p>
 
 <h2>Resource locking: protection against a stampede</h2>

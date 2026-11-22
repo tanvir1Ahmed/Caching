@@ -68,6 +68,7 @@
 <summary>&#128214; More details (optional)</summary>
 
 <h2>Versioning cached data</h2>
+<div class="story mini" data-story="4.3-version"></div>
 <p>Imagine you rename <code>Price</code> to <code>UnitPrice</code> and deploy. For the next hour, Redis still holds JSON with <code>"Price"</code>. The new code deserializes it with <code>UnitPrice = 0</code>, and users see free products. Ways to stay safe:</p>
 <ul>
     <li><b>Version your keys:</b> <code>product:v2:42</code>. New code reads new keys, old entries simply expire.</li>

@@ -56,6 +56,7 @@ await groupToken.CancelAsync();</code></pre>
 </div>
 
 <h2>Where should invalidation happen?</h2>
+<div class="story mini" data-story="6.1-cdc"></div>
 <ul>
     <li><b>In the service that writes</b> (what this project does): simple, but every write path must remember it.</li>
     <li><b>Domain events</b>: the write raises "ProductPriceChanged", and a handler invalidates. Writers do not need to know about caches.</li>

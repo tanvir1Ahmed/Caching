@@ -38,7 +38,7 @@ const StoryPlayer = (() => {
         build() {
             const height = this.scene.height ?? 260;
             this.container.innerHTML = `
-                <div class="story-head"><span class="story-tag">Watch it</span><span class="story-title"></span></div>
+                <div class="story-head"><span class="story-tag">${this.scene.tag ?? "Watch it"}</span><span class="story-title"></span></div>
                 <div class="story-stage"></div>
                 <div class="story-caption"><span class="story-step"></span><span class="story-text"></span></div>
                 <div class="story-controls">
@@ -224,7 +224,7 @@ const StoryPlayer = (() => {
             });
         }
 
-        move([fromId, toId, label = "", tone = "accent"], speed) {
+        move([fromId, toId, label = "", tone = "accent", factor = 1], speed) {
             const from = this.nodes[fromId];
             const to = this.nodes[toId];
             const color = tones[tone] ?? tone;
@@ -232,7 +232,7 @@ const StoryPlayer = (() => {
             svg("circle", { r: 9, fill: color }, packet);
             const text = svg("text", { y: -15, "text-anchor": "middle", class: "story-packet-label", fill: color }, packet);
             text.textContent = label;
-            const duration = 950 * speed;
+            const duration = 950 * speed * factor;
             const start = performance.now();
             return new Promise(resolve => {
                 const frame = now => {
@@ -288,8 +288,41 @@ const StoryPlayer = (() => {
         });
     }
 
+    function animateFlows() {
+        document.querySelectorAll(".flow").forEach(flow => {
+            const steps = [...flow.querySelectorAll(".flow-step")];
+            if (steps.length < 2) return;
+            flow.classList.add("flow-anim");
+            let index = -1;
+            let visible = false;
+            const tick = () => {
+                if (!visible) return;
+                steps.forEach(s => s.classList.remove("active"));
+                flow.querySelectorAll(".flow-arrow").forEach(a => a.classList.remove("active"));
+                index = (index + 1) % (steps.length + 1);
+                if (index < steps.length) {
+                    steps.slice(0, index).forEach(s => s.classList.add("seen"));
+                    steps[index].classList.add("active");
+                    const arrow = steps[index].nextElementSibling;
+                    if (arrow?.classList.contains("flow-arrow")) arrow.classList.add("active");
+                } else {
+                    steps.forEach(s => s.classList.remove("seen"));
+                }
+            };
+            setInterval(tick, 1300);
+            if ("IntersectionObserver" in window) {
+                new IntersectionObserver(entries => visible = entries.some(e => e.isIntersecting), { threshold: 0.4 }).observe(flow);
+            } else {
+                visible = true;
+            }
+        });
+    }
+
     return {
-        mountAll,
+        mountAll: () => {
+            mountAll();
+            animateFlows();
+        },
         trace: (key, name) => players.get(key)?.trace(name)
     };
 })();

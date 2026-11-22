@@ -106,6 +106,7 @@ AbsoluteExpirationRelativeToNow = 30s</code></pre>
 <summary>&#128214; More details (optional)</summary>
 
 <h2>How IMemoryCache really removes expired entries</h2>
+<div class="story mini" data-story="1.3-lazy"></div>
 <p>There is no timer per entry. IMemoryCache expires entries <b>lazily</b>:</p>
 <ul>
     <li>When you read a key, it first checks whether that entry has expired. If so, it removes it and reports a miss. You can never read an expired value.</li>

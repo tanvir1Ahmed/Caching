@@ -53,6 +53,7 @@
 </div>
 
 <h2>The cache key and purging</h2>
+<div class="story mini" data-story="2.5-purge"></div>
 <p>A CDN identifies a cached object by its <b>cache key</b>, usually the host, path and query string. <code>/style.css?v=1</code> and <code>/style.css?v=2</code> are different objects. To update content before its TTL ends you <b>purge</b> it (remove it from all edges through the CDN's dashboard or API, by URL, prefix or tag). Purging takes seconds to minutes and does not reach browsers that already have a fresh copy.</p>
 
 <h2>Static files: versioning instead of purging</h2>

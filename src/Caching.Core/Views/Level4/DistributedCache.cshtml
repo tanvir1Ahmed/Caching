@@ -44,6 +44,7 @@ else
 <p><code>InstanceName</code> is a prefix added to every key, which keeps this app's keys apart from anything else in the same Redis database. The factory reuses the app's single Redis connection: <code>ConnectionMultiplexer</code> is designed to be created once and shared.</p>
 
 <h2>How Redis stores an IDistributedCache entry</h2>
+<div class="story mini" data-story="4.2-hash"></div>
 <p>Each entry is a Redis <b>hash</b> with three fields: <code>data</code> (your bytes), <code>absexp</code> (absolute expiry in ticks) and <code>sldexp</code> (sliding window in ticks). Redis's own TTL on the key is set to the sliding window, and refreshed on each read. Use the inspector below to see a real entry.</p>
 
 <h2>A cache must fail open</h2>

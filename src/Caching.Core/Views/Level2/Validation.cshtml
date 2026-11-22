@@ -42,6 +42,7 @@ Request:  If-Modified-Since: Thu, 01 Jan 2026 00:00:00 GMT</code></pre>
 <p>If the content changed, the ETag no longer matches and the server returns a normal <b>200</b> with the new body and the new ETag.</p>
 
 <h2>Rules worth knowing</h2>
+<div class="story mini" data-story="2.2-ifmatch"></div>
 <ul>
     <li><b>ETag wins.</b> If a request has both <code>If-None-Match</code> and <code>If-Modified-Since</code>, the server must use the ETag and ignore the date.</li>
     <li><b>Strong vs weak ETags.</b> <code>"abc"</code> is strong: byte-for-byte identical. <code>W/"abc"</code> is weak: "means the same", for example the same data with different whitespace or compression.</li>

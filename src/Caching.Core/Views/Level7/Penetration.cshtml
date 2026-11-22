@@ -22,6 +22,7 @@ else cache.Set(key, "NOT_FOUND", TimeSpan.FromSeconds(30));</code></pre>
 <p>This stops repeated requests for the same missing id. It does <b>not</b> help against random ids: each one is new, and the cache fills up with useless markers.</p>
 
 <h2>Fix 2: a Bloom filter in front of the cache</h2>
+<div class="story mini" data-story="7.2-bloom"></div>
 <p>A <b>Bloom filter</b> is a compact bit array that answers "could this id exist?" with either <b>"definitely not"</b> or <b>"maybe"</b>. Load it with all existing ids. Requests for ids that are definitely not there are rejected before touching the cache or the database.</p>
 <ul>
     <li><b>Adding</b> an item: compute k hash positions and set those bits to 1.</li>

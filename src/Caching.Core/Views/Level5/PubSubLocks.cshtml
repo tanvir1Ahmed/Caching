@@ -25,6 +25,7 @@
 <p>In this app a background service (<code>RedisSubscriberWorker</code>) subscribes when the app starts, and logs every message it receives.</p>
 
 <h2>Distributed locks: one worker at a time</h2>
+<div class="story mini" data-story="5.3-token"></div>
 <p>Suppose 4 servers all run a scheduled "generate daily report" job. Without coordination the report is generated 4 times. A lock in Redis lets only one of them proceed:</p>
 <pre><code>SET lock:daily-report "worker-1:random-token" NX PX 5000</code></pre>
 <ul>

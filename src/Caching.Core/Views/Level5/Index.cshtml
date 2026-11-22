@@ -13,6 +13,7 @@
 <summary>&#128214; Want to understand it deeply? Read the full explanation</summary>
 
 <h2>What Redis is</h2>
+<div class="story mini" data-story="5.1-atomic"></div>
 <ul>
     <li><b>In memory:</b> all data lives in RAM, so most commands take microseconds on the server. Network time dominates.</li>
     <li><b>Single-threaded command execution:</b> commands run one at a time, so each command is <b>atomic</b>. <code>INCR</code> from 1,000 clients at once never loses an update.</li>

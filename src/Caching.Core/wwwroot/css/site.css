@@ -375,3 +375,11 @@ details.deep > summary::-webkit-details-marker { display: none; }
     .story-caption { font-size: 1rem; }
     .story-dots { margin-left: 0; width: 100%; }
 }
+
+.flow-anim .flow-step { transition: transform 0.35s, box-shadow 0.35s, border-color 0.35s, opacity 0.35s; }
+.flow-anim .flow-step.active { transform: translateY(-4px) scale(1.03); box-shadow: 0 8px 22px rgba(47, 111, 222, 0.25); border-color: var(--accent); border-width: 2px; }
+.flow-anim .flow-step.seen { opacity: 0.75; }
+.flow-anim .flow-arrow { transition: color 0.3s, transform 0.3s; }
+.flow-anim .flow-arrow.active { color: var(--accent); transform: translateX(4px) scale(1.3); }
+.story.mini { margin: 12px 0 18px; box-shadow: none; }
+.story.mini .story-tag { background: var(--warn); }

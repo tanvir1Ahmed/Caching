@@ -124,6 +124,7 @@
 <p>Typical uses: logging and metrics (how often are we evicting for capacity? then the limit is too small), and releasing resources tied to the entry. Callbacks run on a background thread after the removal, so keep them short and never assume they run instantly.</p>
 
 <h2>Eviction policies in general</h2>
+<div class="story mini" data-story="1.4-lru"></div>
 <p>Every cache needs a rule for choosing what to remove when full. You will meet these names again with Redis in Level 5.</p>
 <table class="card">
     <thead><tr><th>Policy</th><th>Removes</th><th>Good for</th></tr></thead>

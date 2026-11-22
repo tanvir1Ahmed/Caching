@@ -13,6 +13,7 @@
 <summary>&#128214; Want to understand it deeply? Read the full explanation</summary>
 
 <h2>Leaderboard with a sorted set</h2>
+<div class="story mini" data-story="5.2-board"></div>
 <p>A sorted set keeps members ordered by score at all times. Adding points is one atomic command, and reading the top 10 or a player's rank is fast even with millions of players.</p>
 <pre><code>ZINCRBY level5:leaderboard 50 "alice"         adds 50 to alice's score
 ZRANGE  level5:leaderboard 0 9 REV WITHSCORES  top 10, highest first

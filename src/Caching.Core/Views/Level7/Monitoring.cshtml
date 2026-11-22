@@ -28,6 +28,7 @@
 </div>
 
 <h2>How to collect it in .NET</h2>
+<div class="story mini" data-story="7.5-otel"></div>
 <ul>
     <li><b>IMemoryCache:</b> <code>TrackStatistics = true</code> and <code>GetCurrentStatistics()</code> (used since lesson 1.2). .NET also publishes them as metrics.</li>
     <li><b>Your own metrics:</b> <code>System.Diagnostics.Metrics</code>. This app has a meter named <code>Caching.Academy</code> with a counter <code>caching_academy.cache_events</code>, tagged by event type and level. Every event in every log on this site increments it.</li>

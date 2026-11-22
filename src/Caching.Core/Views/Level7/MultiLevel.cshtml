@@ -13,6 +13,7 @@
 <summary>&#128214; Want to understand it deeply? Read the full explanation</summary>
 
 <h2>The hot key problem</h2>
+<div class="story mini" data-story="7.4-hotkey"></div>
 <p>A flash sale product, the home page configuration, a celebrity's profile: one key read 50,000 times per second. In a Redis cluster, a key lives on exactly one node, so that node gets all the load and its network or CPU becomes the bottleneck, while other nodes sit idle. Even on one Redis, 50,000 network round trips per second cost a lot.</p>
 <div class="card">
     <table>
