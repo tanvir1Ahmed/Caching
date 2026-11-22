@@ -1,0 +1,100 @@
+@{
+    ViewData["Title"] = "Pub/Sub and distributed locks";
+    ViewData["Lesson"] = "l5-pubsub";
+}
+
+<h1>5.3 Pub/Sub and distributed locks</h1>
+<p class="lead">Two coordination tools every multi-server cache eventually needs: telling all servers that something changed, and making sure only one server does a job at a time.</p>
+
+<h2>Pub/Sub: broadcast a message to every server</h2>
+<p>A publisher sends a message to a <b>channel</b>. Redis immediately pushes it to every client currently subscribed to that channel. It is fire-and-forget: Redis does not store the message, and a server that is not connected at that moment never receives it.</p>
+<div class="flow">
+    <div class="flow-step"><b>Server A</b><small><code>PUBLISH cache-invalidation "product:42"</code></small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step hit"><b>Redis channel</b></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step"><b>Servers A, B, C</b><small>Each removes product:42 from its L1 memory cache</small></div>
+</div>
+<p>This is the standard fix for the problem from lessons 4.1 and 4.4: local caches on other servers that do not know about a change. Lesson 7.4 builds exactly that. For messages that must not be lost, use <b>Redis Streams</b> or a message broker instead.</p>
+<p>In this app a background service (<code>RedisSubscriberWorker</code>) subscribes when the app starts, and logs every message it receives.</p>
+
+<h2>Distributed locks: one worker at a time</h2>
+<p>Suppose 4 servers all run a scheduled "generate daily report" job. Without coordination the report is generated 4 times. A lock in Redis lets only one of them proceed:</p>
+<pre><code>SET lock:daily-report "worker-1:random-token" NX PX 5000</code></pre>
+<ul>
+    <li><code>NX</code>: only set it if the key does not exist. Exactly one caller succeeds, atomically.</li>
+    <li><code>PX 5000</code>: the lock expires after 5 seconds, so a crashed worker cannot block everyone forever.</li>
+    <li><b>Random token:</b> on release, delete the key <b>only if it still holds my token</b> (a small Lua script does the compare-and-delete). Otherwise a slow worker could delete a lock that now belongs to someone else.</li>
+</ul>
+<p>StackExchange.Redis wraps this as <code>LockTakeAsync(key, token, expiry)</code> and <code>LockReleaseAsync(key, token)</code>.</p>
+<div class="callout danger">
+    <strong>The lock expiry trap</strong>
+    If the work takes longer than the lock's expiry, the lock disappears while the first worker is still working, and a second worker can take it. Now two workers run at once, which is exactly what the lock was meant to prevent. Choose an expiry well above the worst-case run time, or extend the lock while working. Try it in the demo.
+</div>
+
+<h2>Live demo</h2>
+<div id="redisStatus"></div>
+<div class="grid grid-2">
+    <div class="card">
+        <b>Pub/Sub</b>
+        <div class="toolbar">
+            <input id="message" value="product:42 changed" />
+            <button class="btn primary" id="btnPublish">Publish</button>
+        </div>
+        <div id="publishResult" class="muted"></div>
+        <div class="events">
+            <table>
+                <thead><tr><th>Time</th><th>Event</th><th>Key</th><th>Detail</th></tr></thead>
+                <tbody id="pubsubEvents"></tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card">
+        <b>Distributed lock</b> <span class="muted">(4 workers start 700 ms apart)</span>
+        <div class="toolbar">
+            <label class="field">Work takes (ms)<input id="workMs" type="number" value="2000" style="width:90px" /></label>
+            <label class="field">Lock expires after (ms)<input id="lockMs" type="number" value="5000" style="width:90px" /></label>
+        </div>
+        <div class="toolbar">
+            <button class="btn primary" id="btnSafe">Run: lock longer than work</button>
+            <button class="btn danger" id="btnUnsafe">Run: lock shorter than work</button>
+        </div>
+        <div id="timeline"></div>
+    </div>
+</div>
+<div class="card">
+    <b>Lock results</b>
+    <table>
+        <thead><tr><th>Worker</th><th>Started</th><th>Got the lock</th><th>Finished</th><th>Note</th></tr></thead>
+        <tbody id="lockResults"><tr><td colspan="5" class="muted">Run the demo.</td></tr></tbody>
+    </table>
+</div>
+
+<h2>Experiments</h2>
+<ol class="steps">
+    <li><b>Publish.</b> Click <em>Publish</em>. The result says it reached 1 subscriber (this app), and the log shows the subscriber received it. With 3 servers running, it would say 3.</li>
+    <li><b>Safe lock.</b> Click <em>Run: lock longer than work</em>. Worker 1 gets the lock and works for 2 s. Workers 2 and 3 start while it is held and skip. Worker 4 starts after worker 1 released it and gets it. The bars never overlap.</li>
+    <li><b>Unsafe lock.</b> Click <em>Run: lock shorter than work</em> (work 2000 ms, lock 1000 ms). Worker 3 gets the lock while worker 1 is <b>still working</b>: the bars overlap. When worker 1 finishes, its release is refused because the lock now has worker 3's token. The token check prevented worse damage, but the overlap already happened.</li>
+</ol>
+
+<h2>What you should take away</h2>
+<div class="callout tip">
+    <strong>Key points</strong>
+    Pub/Sub broadcasts short-lived notifications, ideal for "clear your local cache" messages, but it does not store messages. Distributed locks use <code>SET NX PX</code> with a unique token and a safe release. Their expiry must be longer than the work they protect.
+</div>
+<div class="callout danger">
+    <strong>Common mistakes</strong>
+    Relying on Pub/Sub for important events that must not be missed. Releasing a lock with a plain <code>DEL</code>. Using a single Redis lock where correctness is critical (money, inventory): if Redis fails over, a lock can be lost. Use database constraints or fencing tokens for those.
+</div>
+
+<h2>Read the code</h2>
+<ul class="code-ref">
+    <li><code>Caching.Business/Service/Implementation/PubSubService.cs</code> and <code>RedisSubscriberWorker.cs</code>: publishing and the startup subscription (retried every 30 s if Redis is down).</li>
+    <li><code>Caching.Business/Service/Implementation/DistributedLockService.cs</code>: workers, tokens, <code>LockTakeAsync</code> and <code>LockReleaseAsync</code>.</li>
+</ul>
+
+<div class="next-link"><a class="btn primary" href="/Level5/Operations">Next: Running Redis &rarr;</a></div>
+
+@section Scripts {
+    <script src="~/js/level5/pubsub-locks.js" asp-append-version="true"></script>
+}

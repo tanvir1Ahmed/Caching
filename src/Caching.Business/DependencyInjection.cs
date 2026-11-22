@@ -56,6 +56,16 @@ public static class DependencyInjection
         services.AddSingleton<ISerializationService, SerializationService>();
         services.AddSingleton<IHybridProductService, HybridProductService>();
 
+        services.AddScoped<IRedisPlaygroundService, RedisPlaygroundService>();
+        services.AddScoped<ILeaderboardService, LeaderboardService>();
+        services.AddScoped<IRateLimiterService, RateLimiterService>();
+        services.AddSingleton<PubSubService>();
+        services.AddSingleton<IPubSubService>(provider => provider.GetRequiredService<PubSubService>());
+        services.AddSingleton<IRedisSubscriber>(provider => provider.GetRequiredService<PubSubService>());
+        services.AddHostedService<RedisSubscriberWorker>();
+        services.AddScoped<IDistributedLockService, DistributedLockService>();
+        services.AddScoped<IRedisInfoService, RedisInfoService>();
+
         return services;
     }
 

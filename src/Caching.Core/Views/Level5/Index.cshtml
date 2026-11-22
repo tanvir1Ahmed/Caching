@@ -1,0 +1,117 @@
+@{
+    ViewData["Title"] = "Redis data types";
+    ViewData["Lesson"] = "l5-index";
+}
+
+<h1>5.1 Redis: more than a key-value cache</h1>
+<p class="lead">Redis is an in-memory data structure server. Besides plain strings it has hashes, lists, sets and sorted sets, each with fast atomic commands. Picking the right type turns many hard problems into one command.</p>
+
+<h2>What Redis is</h2>
+<ul>
+    <li><b>In memory:</b> all data lives in RAM, so most commands take microseconds on the server. Network time dominates.</li>
+    <li><b>Single-threaded command execution:</b> commands run one at a time, so each command is <b>atomic</b>. <code>INCR</code> from 1,000 clients at once never loses an update.</li>
+    <li><b>Keys with optional TTL:</b> any key can expire. Expired keys are removed lazily on access and by a background sweep, like IMemoryCache in lesson 1.3.</li>
+    <li><b>Optional persistence and replication:</b> covered in lesson 5.4.</li>
+</ul>
+
+<h2>The core data types</h2>
+<div class="card">
+    <table>
+        <thead><tr><th>Type</th><th>Shape</th><th>Key commands</th><th>Typical use</th></tr></thead>
+        <tbody>
+            <tr><td><b>String</b></td><td>One value (text, number, bytes up to 512 MB)</td><td><code>SET</code>, <code>GET</code>, <code>INCR</code>, <code>SET ... EX</code>, <code>SET ... NX</code></td><td>Cached JSON, counters, flags, locks</td></tr>
+            <tr><td><b>Hash</b></td><td>A small map of field &rarr; value</td><td><code>HSET</code>, <code>HGET</code>, <code>HGETALL</code>, <code>HINCRBY</code></td><td>Objects whose fields change separately (stock count)</td></tr>
+            <tr><td><b>List</b></td><td>Ordered sequence, fast at both ends</td><td><code>LPUSH</code>, <code>RPOP</code>, <code>LRANGE</code>, <code>LTRIM</code></td><td>Recent activity, simple queues</td></tr>
+            <tr><td><b>Set</b></td><td>Unordered unique members</td><td><code>SADD</code>, <code>SISMEMBER</code>, <code>SMEMBERS</code>, <code>SINTER</code></td><td>Unique visitors, tags, "who liked this"</td></tr>
+            <tr><td><b>Sorted set</b></td><td>Unique members ordered by a score</td><td><code>ZADD</code>, <code>ZINCRBY</code>, <code>ZRANGE ... REV</code>, <code>ZRANK</code></td><td>Leaderboards, time-ordered data, sliding windows (lesson 5.2)</td></tr>
+        </tbody>
+    </table>
+</div>
+<p class="muted">Redis also has streams (durable message logs), bitmaps, HyperLogLog (approximate unique counts in 12 KB), geospatial indexes, and with modules JSON and vector search.</p>
+
+<h2>Live demo: Redis playground</h2>
+<p>Each button runs real Redis commands through <code>IRedisRepository</code>. The exact command is shown with the result. All keys get the <code>caching-academy:</code> prefix in Redis; it is hidden here.</p>
+<div id="redisStatus"></div>
+<div class="card">
+    <div class="toolbar">
+        <label class="field">Value used by SET, LPUSH and SADD
+            <input id="value" value="visitor-1" />
+        </label>
+        <button class="btn danger" id="btnDelete">Delete all level5 keys</button>
+    </div>
+    <div class="grid grid-2">
+        <div>
+            <b>String</b>
+            <div class="toolbar">
+                <button class="btn" data-op="string-set">SET greeting (60 s TTL)</button>
+                <button class="btn" data-op="string-get">GET greeting</button>
+                <button class="btn" data-op="string-incr">INCR page-views</button>
+            </div>
+            <b>Hash</b>
+            <div class="toolbar">
+                <button class="btn" data-op="hash-set">HSET product:1</button>
+                <button class="btn" data-op="hash-incr">HINCRBY stock -1</button>
+                <button class="btn" data-op="hash-get">HGETALL product:1</button>
+            </div>
+        </div>
+        <div>
+            <b>List</b> <span class="muted">(keeps the 5 newest)</span>
+            <div class="toolbar">
+                <button class="btn" data-op="list-push">LPUSH recent-activity</button>
+                <button class="btn" data-op="list-range">LRANGE recent-activity</button>
+            </div>
+            <b>Set</b>
+            <div class="toolbar">
+                <button class="btn" data-op="set-add">SADD unique-visitors</button>
+                <button class="btn" data-op="set-members">SMEMBERS unique-visitors</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="grid grid-2">
+    <div class="card">
+        <b>Command history</b>
+        <table>
+            <thead><tr><th>Command</th><th>Result</th><th>Time</th></tr></thead>
+            <tbody id="history"><tr><td colspan="3" class="muted">No commands yet.</td></tr></tbody>
+        </table>
+    </div>
+    <div class="card">
+        <b>Keys in Redis</b> <span class="muted">(SCAN level5:*)</span>
+        <table>
+            <thead><tr><th>Key</th><th>Type</th><th>TTL</th></tr></thead>
+            <tbody id="keys"></tbody>
+        </table>
+    </div>
+</div>
+
+<h2>Experiments</h2>
+<ol class="steps">
+    <li><b>Strings and TTL.</b> Click <em>SET greeting</em>, then <em>GET greeting</em>. Watch its TTL count down in the key list. After 60 seconds GET returns <code>(nil)</code>.</li>
+    <li><b>Atomic counters.</b> Click <em>INCR page-views</em> several times. No read-modify-write in your code, no race conditions, even with many servers.</li>
+    <li><b>Hashes.</b> Click <em>HSET product:1</em>, then <em>HINCRBY stock -1</em> a few times, then <em>HGETALL</em>. Only one field changed: no need to read, deserialize and rewrite the whole object.</li>
+    <li><b>Lists.</b> Click <em>LPUSH</em> 7 times with different values, then <em>LRANGE</em>. Only the 5 newest remain, because each push is followed by <code>LTRIM 0 4</code>.</li>
+    <li><b>Sets.</b> Click <em>SADD</em> twice with the same value: the second time returns 0. Change the value and add again. Sets give you uniqueness for free.</li>
+</ol>
+
+<h2>What you should take away</h2>
+<div class="callout tip">
+    <strong>Key points</strong>
+    Redis commands are atomic and operate on data structures inside Redis, so you can update one field, push to a list or increment a counter without reading the value into your app first. Choose the type that matches the operation you need, and give keys a TTL whenever the data is cache-like.
+</div>
+<div class="callout danger">
+    <strong>Common mistakes</strong>
+    Storing everything as one big JSON string and rewriting it for every small change. Keys without TTL that grow forever. Running <code>KEYS *</code> in production: it blocks the single-threaded server while scanning every key. Use <code>SCAN</code> instead, as this page does.
+</div>
+
+<h2>Read the code</h2>
+<ul class="code-ref">
+    <li><code>Caching.Business/Service/Implementation/RedisPlaygroundService.cs</code>: each button and the Redis command it runs.</li>
+    <li><code>Caching.Infrastructure/Repository/Implementation/RedisRepository.cs</code>: the StackExchange.Redis calls (<code>StringIncrementAsync</code>, <code>HashSetAsync</code>, <code>ListLeftPushAsync</code>...), the key prefix and <code>SCAN</code>.</li>
+</ul>
+
+<div class="next-link"><a class="btn primary" href="/Level5/UseCases">Next: Leaderboard and rate limiting &rarr;</a></div>
+
+@section Scripts {
+    <script src="~/js/level5/playground.js" asp-append-version="true"></script>
+}

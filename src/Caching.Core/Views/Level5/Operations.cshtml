@@ -1,0 +1,112 @@
+@{
+    ViewData["Title"] = "Running Redis";
+    ViewData["Lesson"] = "l5-ops";
+}
+
+<h1>5.4 Running Redis: memory, eviction, persistence and scaling</h1>
+<p class="lead">Redis keeps everything in RAM. To run it in production you need to know what happens when memory is full, whether data survives a restart, and how to scale beyond one server.</p>
+
+<h2>When memory is full: eviction policies</h2>
+<p>Redis's <code>maxmemory</code> setting caps memory use. When it is reached, <code>maxmemory-policy</code> decides what happens to the next write. You met these ideas in lesson 1.4:</p>
+<div class="card">
+    <table>
+        <thead><tr><th>Policy</th><th>Behavior</th><th>Good for</th></tr></thead>
+        <tbody>
+            <tr><td><code>noeviction</code></td><td>Writes fail with an error, nothing is removed</td><td>Redis used as a database or queue where losing keys is not acceptable</td></tr>
+            <tr><td><code>allkeys-lru</code></td><td>Remove the least recently used key, any key</td><td><b>The usual choice for a pure cache</b></td></tr>
+            <tr><td><code>allkeys-lfu</code></td><td>Remove the least frequently used key</td><td>Caches with stable popular items</td></tr>
+            <tr><td><code>volatile-lru</code> / <code>volatile-lfu</code></td><td>Like above, but only keys that have a TTL</td><td>Mixing cache keys (with TTL) and permanent keys in one Redis</td></tr>
+            <tr><td><code>volatile-ttl</code></td><td>Remove the key with the shortest remaining TTL</td><td>When near-expiry data is least valuable</td></tr>
+            <tr><td><code>allkeys-random</code> / <code>volatile-random</code></td><td>Remove a random key</td><td>Rarely the best, but cheap</td></tr>
+        </tbody>
+    </table>
+</div>
+<p class="muted">Redis's LRU and LFU are approximate: it samples a few keys and evicts the best candidate among them, which is much cheaper than tracking exact order.</p>
+
+<h2>Persistence: does data survive a restart?</h2>
+<div class="grid grid-2">
+    <div class="card">
+        <b>RDB snapshots</b>
+        <p class="muted">Redis periodically writes the whole dataset to a compact file. Fast restarts and easy backups, but you can lose the changes since the last snapshot.</p>
+    </div>
+    <div class="card">
+        <b>AOF (append-only file)</b>
+        <p class="muted">Every write command is appended to a log, flushed every second (typical) or on every write. Loses at most about a second of data, but the file is larger and restarts are slower.</p>
+    </div>
+</div>
+<p>For a <b>pure cache</b> you can run without persistence: after a restart the cache is cold and refills from the database. If Redis also holds data that exists nowhere else (sessions, leaderboards, queues), enable persistence.</p>
+
+<h2>High availability and scaling</h2>
+<div class="card">
+    <table>
+        <thead><tr><th>Setup</th><th>What it does</th></tr></thead>
+        <tbody>
+            <tr><td><b>Replication</b></td><td>Replicas keep a copy of the primary. They can serve reads and take over if the primary dies. Replication is asynchronous, so the newest writes can be lost on failover.</td></tr>
+            <tr><td><b>Sentinel</b></td><td>Monitors primary and replicas and promotes a replica automatically. Clients ask Sentinel where the current primary is.</td></tr>
+            <tr><td><b>Cluster</b></td><td>Splits data across several primaries. Every key maps to one of 16,384 <b>hash slots</b>, and each node owns some slots. Scales memory and throughput horizontally.</td></tr>
+        </tbody>
+    </table>
+</div>
+<p>In a cluster, a command that touches several keys only works if they are in the same slot. <b>Hash tags</b> force that: only the part in braces is hashed, so <code>{user:42}:cart</code> and <code>{user:42}:profile</code> land on the same node.</p>
+<p>Most teams use a managed service instead of running this themselves: Redis Cloud (what your connection string points to), Azure Managed Redis, Amazon ElastiCache / MemoryDB, Google Memorystore. Redis-compatible alternatives include <b>Valkey</b> (open-source fork), Microsoft <b>Garnet</b> and <b>Dragonfly</b>; StackExchange.Redis works with all of them.</p>
+
+<h2>Live demo: your Redis server</h2>
+<p>Read live with the <code>INFO</code> command. On a shared free cloud database some values may be limited or hidden.</p>
+<div id="redisStatus"></div>
+<div class="toolbar">
+    <button class="btn primary" id="btnRefresh">Refresh</button>
+</div>
+<div class="grid grid-3">
+    <div class="card stat"><div class="value" id="hits">-</div><div class="label">Keyspace hits</div></div>
+    <div class="card stat"><div class="value" id="misses">-</div><div class="label">Keyspace misses</div></div>
+    <div class="card stat"><div class="value" id="ratio">-</div><div class="label">Server-wide hit ratio</div></div>
+</div>
+<div class="grid grid-2">
+    <div class="card">
+        <b>Server information</b>
+        <table class="kv"><tbody id="info"></tbody></table>
+    </div>
+    <div class="card">
+        <b>This course's keys</b> <span class="muted">(SCAN caching-academy:*)</span>
+        <div class="events">
+            <table>
+                <thead><tr><th>Key</th><th>Type</th><th>TTL</th></tr></thead>
+                <tbody id="keys"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<h2>Experiments</h2>
+<ol class="steps">
+    <li><b>Read the policy.</b> Find <code>maxmemory_policy</code>. A local Redis says <code>noeviction</code> by default; managed caches often default to a volatile or allkeys policy.</li>
+    <li><b>Hit ratio at the server.</b> Use the Level 4 demos for a minute, then refresh here. <code>keyspace_hits</code> and <code>keyspace_misses</code> count every lookup on the server, a key metric to monitor (lesson 7.5).</li>
+    <li><b>Key hygiene.</b> Look at the key list: keys from Levels 4 and 5, each with or without a TTL. Every cache key should have one.</li>
+</ol>
+
+<h2>What you should take away</h2>
+<div class="callout tip">
+    <strong>Key points</strong>
+    Set <code>maxmemory</code> and an eviction policy (<code>allkeys-lru</code> for a pure cache). Decide whether you need persistence: not for a pure cache, yes if Redis holds data that exists nowhere else. Use replication for availability and cluster for scale, or a managed service. Watch memory, evictions and the hit ratio.
+</div>
+<div class="callout danger">
+    <strong>Common mistakes</strong>
+    Using <code>noeviction</code> for a cache, so writes start failing when memory fills up. Big keys (a hash with millions of fields, a 50 MB string) that block the server and break even distribution in a cluster. Assuming replication means no data loss.
+</div>
+
+<div class="callout">
+    <strong>Level 5 complete</strong>
+    You can now use Redis data types, build leaderboards and global rate limiters, broadcast messages, take safe locks, and reason about running Redis in production. Level 6 tackles the hardest part of caching: keeping cached data correct when the source changes.
+</div>
+
+<h2>Read the code</h2>
+<ul class="code-ref">
+    <li><code>Caching.Business/Service/Implementation/RedisInfoService.cs</code>: which <code>INFO</code> fields are shown and how the hit ratio is computed.</li>
+    <li><code>Caching.Infrastructure/Repository/Implementation/RedisRepository.cs</code>: <code>InfoAsync</code> and <code>ScanKeysAsync</code>.</li>
+</ul>
+
+<div class="next-link"><a class="btn primary" href="/Level6">Next: Level 6, invalidation and consistency &rarr;</a></div>
+
+@section Scripts {
+    <script src="~/js/level5/operations.js" asp-append-version="true"></script>
+}

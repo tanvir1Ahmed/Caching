@@ -14,8 +14,8 @@ This repository is a **caching course**. The user is learning caching from begin
 | 2 | HTTP caching: Cache-Control, ETag, Last-Modified, response caching, output caching, CDN concepts | Done |
 | 3 | Strategies: cache-aside, read-through, write-through, write-behind, write-around, refresh-ahead | Done |
 | 4 | Distributed caching: IDistributedCache (Redis, SQL), HybridCache, serialization | Done |
-| 5 | Redis in depth: data types, Pub/Sub, distributed locks, rate limiting, eviction policies, persistence, replication, cluster | Next |
-| 6 | Invalidation and consistency: time, event, tag and version based invalidation, stale data | Planned |
+| 5 | Redis in depth: data types, Pub/Sub, distributed locks, rate limiting, eviction policies, persistence, replication, cluster | Done |
+| 6 | Invalidation and consistency: time, event, tag and version based invalidation, stale data | Next |
 | 7 | Advanced: stampede, penetration, avalanche, hot keys, multi-level cache, Bloom filter, monitoring, Memcached, NCache, EF Core second-level cache | Planned |
 
 Update this table when a level is finished.
@@ -95,6 +95,7 @@ Every lesson view follows the same structure:
 - `RedisConnection` (Infrastructure/Data) owns the one lazy `ConnectionMultiplexer` with `AllowAdmin = true` (needed for INFO and key scans), `AbortOnConnectFail = false` and 2-3 second timeouts. All Redis keys use the prefix `caching-academy:` (`RedisConnection.KeyPrefix`, also the `IDistributedCache` `InstanceName`).
 - `AddInfrastructure` registers `RedisConnection`, `IRedisRepository` (direct Redis commands, used by Business) and, when Redis is configured, `IConnectionMultiplexer` plus `AddStackExchangeRedisCache` sharing that connection. Without Redis it registers `AddDistributedMemoryCache` so `IDistributedCache` and `HybridCache` always work.
 - `RedisRepository` wraps every Redis error in `CacheUnavailableException`. `Program.cs` has a global exception handler that turns it into HTTP 503 with `{ error }` JSON. Services using `IDistributedCache` catch failures themselves and fall back to the database (a cache must fail open).
+- Level 5 services (`RedisPlaygroundService`, `LeaderboardService`, `RateLimiterService`, `PubSubService`, `DistributedLockService`, `RedisInfoService`) call `IRedisRepository` and let `CacheUnavailableException` become a 503; pages show it with `redisErrorHtml`. Redis subscriptions implement `IRedisSubscriber` and are started (and retried every 30 s) by the `RedisSubscriberWorker` hosted service.
 - Business `IRedisStatusService` (`GET api/redis/status`) reports configured/connected/ping; portal pages show it with `renderRedisStatus` from `site.js`.
 - The Claude cloud sandbox cannot reach the Redis Cloud host. Test Redis code against a local server instead: `apt-get install redis-server`, `redis-server --daemonize yes`, then run the app with `ConnectionStrings__Redis=localhost:6379`.
 

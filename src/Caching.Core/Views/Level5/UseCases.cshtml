@@ -1,0 +1,94 @@
+@{
+    ViewData["Title"] = "Leaderboard and rate limiting";
+    ViewData["Lesson"] = "l5-usecases";
+}
+
+<h1>5.2 Real use cases: leaderboard and rate limiting</h1>
+<p class="lead">Two classic problems that are hard to do correctly in a database across many servers, and almost trivial with the right Redis data type.</p>
+
+<h2>Leaderboard with a sorted set</h2>
+<p>A sorted set keeps members ordered by score at all times. Adding points is one atomic command, and reading the top 10 or a player's rank is fast even with millions of players.</p>
+<pre><code>ZINCRBY level5:leaderboard 50 "alice"         adds 50 to alice's score
+ZRANGE  level5:leaderboard 0 9 REV WITHSCORES  top 10, highest first
+ZREVRANK level5:leaderboard "alice"            alice's position (0 = first)</code></pre>
+<p>In SQL you would run <code>ORDER BY score DESC</code> over the whole table for every page view, and computing one player's rank means counting everyone above them.</p>
+
+<h2>Rate limiting with INCR and EXPIRE</h2>
+<p>"At most 5 requests per 10 seconds per client" is a <b>fixed window</b> limiter. The current window number (Unix time / 10) is part of the key, so each window has its own counter:</p>
+<pre><code>key   = level5:rate:{client}:{unixSeconds / 10}
+count = INCR key                    atomic, even with many servers
+if count == 1: EXPIRE key 10        the counter cleans itself up
+allowed = count &lt;= 5</code></pre>
+<p>Because the counter lives in Redis, the limit is global across all your servers. ASP.NET Core's built-in rate limiter (<code>AddRateLimiter</code>) keeps its counters in each server's memory, so with 4 servers a client can make 4 times the limit.</p>
+<div class="callout">
+    <strong>Fixed window vs sliding window</strong>
+    A fixed window allows a burst at the boundary: 5 requests at second 9.9 and 5 more at second 10.1. A <b>sliding window</b> fixes this by storing each request's timestamp in a sorted set and counting the entries in the last 10 seconds (<code>ZADD</code>, <code>ZREMRANGEBYSCORE</code>, <code>ZCARD</code>), at the cost of more memory per client.
+</div>
+
+<h2>Live demo</h2>
+<div id="redisStatus"></div>
+<div class="grid grid-2">
+    <div class="card">
+        <b>Leaderboard</b>
+        <div class="toolbar">
+            <label class="field">Player<input id="player" value="alice" size="10" /></label>
+            <label class="field">Points<input id="points" type="number" value="10" style="width:80px" /></label>
+            <button class="btn primary" id="btnScore">Add points</button>
+            <button class="btn" id="btnRandom">Simulate 20 random games</button>
+        </div>
+        <div id="scoreResult" class="muted"></div>
+        <table>
+            <thead><tr><th>Rank</th><th>Player</th><th>Score</th></tr></thead>
+            <tbody id="leaderboard"></tbody>
+        </table>
+    </div>
+    <div class="card">
+        <b>Rate limiter</b> <span class="muted">(5 requests per 10 seconds)</span>
+        <div class="toolbar">
+            <label class="field">Client id<input id="client" value="mobile-app" size="12" /></label>
+            <button class="btn primary" id="btnRequest">Send 1 request</button>
+            <button class="btn" id="btnBurst">Send 8 requests</button>
+        </div>
+        <div class="grid grid-2">
+            <div class="stat"><div class="value" id="rateCount">-</div><div class="label">Requests in this window</div></div>
+            <div class="stat"><div class="value" id="rateReset">-</div><div class="label">Window resets in</div></div>
+        </div>
+        <table>
+            <thead><tr><th>#</th><th>Status</th><th>Count</th></tr></thead>
+            <tbody id="rateHistory"></tbody>
+        </table>
+    </div>
+</div>
+
+<h2>Experiments</h2>
+<ol class="steps">
+    <li><b>Build a leaderboard.</b> Add points for a few players, then click <em>Simulate 20 random games</em>. The table is always sorted, straight from Redis.</li>
+    <li><b>Ranks.</b> Add points to the last player until they overtake someone. The returned rank changes immediately.</li>
+    <li><b>Hit the limit.</b> Click <em>Send 8 requests</em>. The first 5 return 200, the rest return <b>429 Too Many Requests</b>.</li>
+    <li><b>Window reset.</b> Wait for the countdown, then send again: a new window, a new counter. The old key expired by itself.</li>
+    <li><b>Per client.</b> Change the client id and send: a separate counter. In a real API the id would be the API key, user id or IP address.</li>
+</ol>
+
+<h2>What you should take away</h2>
+<div class="callout tip">
+    <strong>Key points</strong>
+    Redis is not only a cache: its atomic data structures solve shared-state problems across servers. Sorted sets give you rankings, <code>INCR</code> + <code>EXPIRE</code> gives you a global rate limiter that cleans up after itself.
+</div>
+<div class="callout danger">
+    <strong>Common mistakes</strong>
+    Reading a counter, adding one in C# and writing it back: two servers will overwrite each other. Use <code>INCR</code>. Forgetting the <code>EXPIRE</code>, so millions of old rate-limit keys stay forever.
+</div>
+
+<h2>Read the code</h2>
+<ul class="code-ref">
+    <li><code>Caching.Business/Service/Implementation/LeaderboardService.cs</code></li>
+    <li><code>Caching.Business/Service/Implementation/RateLimiterService.cs</code></li>
+    <li><code>Caching.Infrastructure/Repository/Implementation/RedisRepository.cs</code>: <code>IncrementAsync</code> sets the expiry when the counter is created.</li>
+    <li><code>Caching.Core/Controllers/Api/RedisFeaturesController.cs</code>: returns 429 when the limit is exceeded.</li>
+</ul>
+
+<div class="next-link"><a class="btn primary" href="/Level5/PubSubLocks">Next: Pub/Sub and distributed locks &rarr;</a></div>
+
+@section Scripts {
+    <script src="~/js/level5/use-cases.js" asp-append-version="true"></script>
+}

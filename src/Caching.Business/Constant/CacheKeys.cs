@@ -8,4 +8,5 @@ public static class CacheKeys
     public static string Http(string scope, int id) => $"level2:{scope.ToLower()}:product:{id}";
     public static string Strategy(string strategy, int id) => $"level3:{strategy}:product:{id}";
     public static string Distributed(string area, int id) => $"level4:{area}:product:{id}";
+    public static string Redis(string name) => $"level5:{name}";
 }
