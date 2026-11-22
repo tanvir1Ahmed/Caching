@@ -8,6 +8,26 @@
 
 <div class="story" data-story="2.1"></div>
 
+<div class="rw-head"><h2>&#127757; In the real world</h2></div>
+<p class="rw-sub">How the biggest companies on the internet meet the idea from this lesson.</p>
+<div class="rw-grid">
+    <div class="rw-card" style="--rw:#1877f2">
+        <div class="rw-company"><span class="rw-logo">📘</span>Facebook</div>
+        <div class="rw-stat">Cache-Control: immutable<small>invented to stop wasted requests</small></div>
+        <p class="rw-text">Facebook found that browsers kept asking &quot;has this changed?&quot; for static files that never change, because their URLs contain a version hash. In 2016 Facebook engineers proposed the immutable directive, and browsers adopted it, removing a huge number of useless revalidation requests.</p>
+        <div class="rw-lesson"><b>Lesson:</b> The right Cache-Control header can remove requests entirely.</div>
+        <div class="rw-source">Source: Facebook engineering blog and RFC 8246, 2016-2017</div>
+    </div>
+    <div class="rw-card" style="--rw:#1b2838">
+        <div class="rw-company"><span class="rw-logo">🎮</span>Steam</div>
+        <div class="rw-stat">Christmas 2015 data leak<small>personal pages cached as public</small></div>
+        <p class="rw-text">During a traffic attack on Christmas Day 2015, a caching configuration change at Steam caused some users&#x27; account pages to be cached and shown to other users. Valve said about 34,000 users had personal details exposed.</p>
+        <div class="rw-lesson"><b>Lesson:</b> Personal responses must be private or no-store. Always.</div>
+        <div class="rw-source">Source: Valve statement, December 2015</div>
+    </div>
+</div>
+
+
 
 <details class="deep">
 <summary>&#128214; Want to understand it deeply? Read the full explanation</summary>

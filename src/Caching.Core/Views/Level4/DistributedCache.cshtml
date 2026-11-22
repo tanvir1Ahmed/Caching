@@ -8,6 +8,19 @@
 
 <div class="story" data-story="4.2"></div>
 
+<div class="rw-head"><h2>&#127757; In the real world</h2></div>
+<p class="rw-sub">How the biggest companies on the internet meet the idea from this lesson.</p>
+<div class="rw-grid">
+    <div class="rw-card" style="--rw:#1d9bf0">
+        <div class="rw-company"><span class="rw-logo">🐦</span>Twitter / X</div>
+        <div class="rw-stat">Timelines live in Redis<small>precomputed for every user</small></div>
+        <p class="rw-text">Twitter described storing users&#x27; home timelines in Redis clusters. When someone tweets, the tweet id is pushed into the cached timelines of their followers, so reading your timeline is a fast cache read instead of a big database query.</p>
+        <div class="rw-lesson"><b>Lesson:</b> Redis as a shared cache can be the main read path of a product.</div>
+        <div class="rw-source">Source: Raffi Krikorian, &quot;Timelines at Scale&quot;, QCon 2013</div>
+    </div>
+</div>
+
+
 
 <details class="deep">
 <summary>&#128214; Want to understand it deeply? Read the full explanation</summary>

@@ -8,6 +8,33 @@
 
 <div class="story" data-story="1.1"></div>
 
+<div class="rw-head"><h2>&#127757; In the real world</h2></div>
+<p class="rw-sub">How the biggest companies on the internet meet the idea from this lesson.</p>
+<div class="rw-grid">
+    <div class="rw-card" style="--rw:#ff9900">
+        <div class="rw-company"><span class="rw-logo">📦</span>Amazon</div>
+        <div class="rw-stat">100 ms = 1% of sales<small>slower pages cost real money</small></div>
+        <p class="rw-text">Amazon measured that every extra 100 milliseconds of page load time cost them about 1% in sales. At Amazon&#x27;s size, that is hundreds of millions of dollars a year. Caching is one of the main tools for winning back those milliseconds.</p>
+        <div class="rw-lesson"><b>Lesson:</b> Speed is not a nice-to-have: it is revenue.</div>
+        <div class="rw-source">Source: Greg Linden (ex-Amazon), talk and blog, 2006</div>
+    </div>
+    <div class="rw-card" style="--rw:#1877f2">
+        <div class="rw-company"><span class="rw-logo">📘</span>Facebook</div>
+        <div class="rw-stat">Billions of requests / second<small>served from memory, not databases</small></div>
+        <p class="rw-text">Facebook built one of the largest cache deployments in the world on memcached. Their paper describes it handling billions of requests per second and holding trillions of items. Without it, their databases could never keep up.</p>
+        <div class="rw-lesson"><b>Lesson:</b> At huge scale, the cache IS the system that answers most reads.</div>
+        <div class="rw-source">Source: &quot;Scaling Memcache at Facebook&quot;, NSDI 2013</div>
+    </div>
+    <div class="rw-card" style="--rw:#336791">
+        <div class="rw-company"><span class="rw-logo">🐘</span>PostgreSQL</div>
+        <div class="rw-stat">~99% buffer cache hits<small>databases cache too</small></div>
+        <p class="rw-text">PostgreSQL keeps recently used table pages in memory (shared_buffers) and relies on the operating system&#x27;s page cache. DBAs watch the cache hit ratio in pg_stat_database and usually aim for about 99%. A slow database is often one whose working set no longer fits in memory.</p>
+        <div class="rw-lesson"><b>Lesson:</b> Caching happens at every layer, even inside the database.</div>
+        <div class="rw-source">Source: PostgreSQL documentation, pg_stat_database</div>
+    </div>
+</div>
+
+
 
 <details class="deep">
 <summary>&#128214; Want to understand it deeply? Read the full explanation</summary>

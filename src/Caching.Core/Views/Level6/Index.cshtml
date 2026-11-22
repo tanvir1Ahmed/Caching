@@ -8,6 +8,26 @@
 
 <div class="story" data-story="6.1"></div>
 
+<div class="rw-head"><h2>&#127757; In the real world</h2></div>
+<p class="rw-sub">How the biggest companies on the internet meet the idea from this lesson.</p>
+<div class="rw-grid">
+    <div class="rw-card" style="--rw:#00758f">
+        <div class="rw-company"><span class="rw-logo">🐬</span>MySQL</div>
+        <div class="rw-stat">Query cache removed<small>invalidation killed it</small></div>
+        <p class="rw-text">MySQL used to cache query results, but invalidated every cached result for a table on any write to that table. Under write load this caused heavy lock contention, so MySQL deprecated it in 5.7 and removed it in 8.0.</p>
+        <div class="rw-lesson"><b>Lesson:</b> Coarse invalidation can make a cache slower than no cache.</div>
+        <div class="rw-source">Source: MySQL Server Team blog, &quot;Retiring Support for the Query Cache&quot;, 2017</div>
+    </div>
+    <div class="rw-card" style="--rw:#1877f2">
+        <div class="rw-company"><span class="rw-logo">📘</span>Facebook</div>
+        <div class="rw-stat">mcsqueal<small>invalidation from the database log</small></div>
+        <p class="rw-text">Facebook runs daemons called mcsqueal that read the MySQL commit log and send cache deletes for every changed row. Even writes from scripts or other systems invalidate the cache, which is the change-data-capture idea in this lesson.</p>
+        <div class="rw-lesson"><b>Lesson:</b> Driving invalidation from the database&#x27;s own change log catches every write.</div>
+        <div class="rw-source">Source: &quot;Scaling Memcache at Facebook&quot;, NSDI 2013</div>
+    </div>
+</div>
+
+
 
 <details class="deep">
 <summary>&#128214; Want to understand it deeply? Read the full explanation</summary>

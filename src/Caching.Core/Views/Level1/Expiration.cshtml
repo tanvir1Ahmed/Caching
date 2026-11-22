@@ -8,6 +8,26 @@
 
 <div class="story" data-story="1.3"></div>
 
+<div class="rw-head"><h2>&#127757; In the real world</h2></div>
+<p class="rw-sub">How the biggest companies on the internet meet the idea from this lesson.</p>
+<div class="rw-grid">
+    <div class="rw-card" style="--rw:#0f9d58">
+        <div class="rw-company"><span class="rw-logo">🌐</span>The Internet (DNS)</div>
+        <div class="rw-stat">Every lookup has a TTL<small>the biggest cache on Earth</small></div>
+        <p class="rw-text">When you visit a website, your computer, your router and your ISP cache the DNS answer for the number of seconds the domain owner chose: its TTL. Billions of lookups per day never reach the domain&#x27;s own servers because of these expiring copies.</p>
+        <div class="rw-lesson"><b>Lesson:</b> Expiration (TTL) is how the whole internet balances speed and freshness.</div>
+        <div class="rw-source">Source: DNS standard (RFC 1035)</div>
+    </div>
+    <div class="rw-card" style="--rw:#1877f2">
+        <div class="rw-company"><span class="rw-logo">📘</span>Facebook</div>
+        <div class="rw-stat">Oct 2021: ~6 hours offline<small>when cached answers ran out</small></div>
+        <p class="rw-text">In October 2021 a network change made Facebook&#x27;s DNS servers unreachable. As cached DNS answers around the world expired, apps could no longer find Facebook, and billions of retries flooded public resolvers. Caches hid the problem for a few minutes, then TTLs ran out.</p>
+        <div class="rw-lesson"><b>Lesson:</b> A cache only protects you until the TTL ends.</div>
+        <div class="rw-source">Source: Meta engineering post and Cloudflare blog, October 2021</div>
+    </div>
+</div>
+
+
 
 <details class="deep">
 <summary>&#128214; Want to understand it deeply? Read the full explanation</summary>

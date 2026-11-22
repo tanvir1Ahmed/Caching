@@ -8,6 +8,26 @@
 
 <div class="story" data-story="4.1"></div>
 
+<div class="rw-head"><h2>&#127757; In the real world</h2></div>
+<p class="rw-sub">How the biggest companies on the internet meet the idea from this lesson.</p>
+<div class="rw-grid">
+    <div class="rw-card" style="--rw:#f48024">
+        <div class="rw-company"><span class="rw-logo">📚</span>Stack Overflow</div>
+        <div class="rw-stat">~9 web servers<small>sharing one Redis</small></div>
+        <p class="rw-text">Stack Overflow serves one of the busiest sites on the internet from a famously small number of servers: around nine web servers in their 2016 architecture write-up. All of them share Redis, so a value cached by one server is instantly available to the others.</p>
+        <div class="rw-lesson"><b>Lesson:</b> Several servers need a shared cache, or they disagree and repeat work.</div>
+        <div class="rw-source">Source: Nick Craver, &quot;Stack Overflow: The Architecture, 2016 Edition&quot;</div>
+    </div>
+    <div class="rw-card" style="--rw:#e50914">
+        <div class="rw-company"><span class="rw-logo">🎬</span>Netflix</div>
+        <div class="rw-stat">EVCache across regions<small>a distributed cache for the whole service</small></div>
+        <p class="rw-text">Netflix built EVCache, a distributed cache on top of memcached, used by many of its services for data like viewing history and personalization. Data is replicated across AWS regions so a member gets a fast answer wherever they are routed.</p>
+        <div class="rw-lesson"><b>Lesson:</b> At big scale, the distributed cache becomes core infrastructure.</div>
+        <div class="rw-source">Source: Netflix Tech Blog, EVCache</div>
+    </div>
+</div>
+
+
 
 <details class="deep">
 <summary>&#128214; Want to understand it deeply? Read the full explanation</summary>

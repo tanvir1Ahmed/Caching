@@ -8,6 +8,26 @@
 
 <div class="story" data-story="5.1"></div>
 
+<div class="rw-head"><h2>&#127757; In the real world</h2></div>
+<p class="rw-sub">How the biggest companies on the internet meet the idea from this lesson.</p>
+<div class="rw-grid">
+    <div class="rw-card" style="--rw:#c13584">
+        <div class="rw-company"><span class="rw-logo">📷</span>Instagram</div>
+        <div class="rw-stat">21 GB → 5 GB<small>by choosing the right Redis type</small></div>
+        <p class="rw-text">Instagram needed to map about 300 million photo ids to user ids in Redis. Plain string keys would have needed around 21 GB of RAM. By grouping them into small Redis hashes, they fit the same data in about 5 GB.</p>
+        <div class="rw-lesson"><b>Lesson:</b> The right data type can cut memory, and cost, by 4x.</div>
+        <div class="rw-source">Source: Instagram Engineering, &quot;Storing hundreds of millions of simple key-value pairs in Redis&quot;, 2011</div>
+    </div>
+    <div class="rw-card" style="--rw:#dc382d">
+        <div class="rw-company"><span class="rw-logo">🟥</span>Redis</div>
+        <div class="rw-stat">Born from a real problem<small>2009</small></div>
+        <p class="rw-text">Salvatore Sanfilippo created Redis in 2009 because a traditional database could not keep up with his real-time web analytics startup. Today AWS, Azure and Google Cloud all sell managed Redis-compatible services.</p>
+        <div class="rw-lesson"><b>Lesson:</b> Redis exists because databases were too slow for real-time data.</div>
+        <div class="rw-source">Source: Redis project history</div>
+    </div>
+</div>
+
+
 
 <details class="deep">
 <summary>&#128214; Want to understand it deeply? Read the full explanation</summary>

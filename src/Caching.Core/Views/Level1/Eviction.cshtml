@@ -8,6 +8,26 @@
 
 <div class="story" data-story="1.4"></div>
 
+<div class="rw-head"><h2>&#127757; In the real world</h2></div>
+<p class="rw-sub">How the biggest companies on the internet meet the idea from this lesson.</p>
+<div class="rw-grid">
+    <div class="rw-card" style="--rw:#3f7f3f">
+        <div class="rw-company"><span class="rw-logo">🧱</span>Memcached</div>
+        <div class="rw-stat">Fixed memory, LRU eviction<small>how big caches stay bounded</small></div>
+        <p class="rw-text">Memcached, used by Facebook, Wikipedia and many others, gets a fixed amount of RAM. When it is full, it evicts the least recently used items. Operators watch the eviction count: a rising number means the cache is too small for the working set.</p>
+        <div class="rw-lesson"><b>Lesson:</b> Every serious cache has a size limit and an eviction rule.</div>
+        <div class="rw-source">Source: Memcached documentation</div>
+    </div>
+    <div class="rw-card" style="--rw:#336791">
+        <div class="rw-company"><span class="rw-logo">🐧</span>Linux &amp; PostgreSQL</div>
+        <div class="rw-stat">Free RAM is page cache<small>eviction you use every day</small></div>
+        <p class="rw-text">Linux uses free memory to cache files, and evicts pages it has not used recently when programs need RAM. PostgreSQL depends on this: hot table pages stay in memory, cold ones get evicted and must be read from disk again.</p>
+        <div class="rw-lesson"><b>Lesson:</b> LRU-style eviction runs inside every computer you own.</div>
+        <div class="rw-source">Source: Linux kernel and PostgreSQL documentation</div>
+    </div>
+</div>
+
+
 
 <details class="deep">
 <summary>&#128214; Want to understand it deeply? Read the full explanation</summary>

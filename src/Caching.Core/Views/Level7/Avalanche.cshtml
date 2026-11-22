@@ -8,6 +8,26 @@
 
 <div class="story" data-story="7.3"></div>
 
+<div class="rw-head"><h2>&#127757; In the real world</h2></div>
+<p class="rw-sub">How the biggest companies on the internet meet the idea from this lesson.</p>
+<div class="rw-grid">
+    <div class="rw-card" style="--rw:#1877f2">
+        <div class="rw-company"><span class="rw-logo">📘</span>Facebook</div>
+        <div class="rw-stat">Sept 2010: ~2.5 hours down<small>a cache-driven feedback loop</small></div>
+        <p class="rw-text">An automated system pushed an invalid configuration value. Every client saw it in the cache, treated it as invalid and went to the database at the same time. The databases were flooded with hundreds of thousands of queries per second, and Facebook had to take the site down to stop the loop.</p>
+        <div class="rw-lesson"><b>Lesson:</b> When everything misses at once, the database cannot survive.</div>
+        <div class="rw-source">Source: Facebook engineering post, &quot;More Details on Today&#x27;s Outage&quot;, 2010</div>
+    </div>
+    <div class="rw-card" style="--rw:#1877f2">
+        <div class="rw-company"><span class="rw-logo">📘</span>Facebook</div>
+        <div class="rw-stat">Cold cluster warmup<small>never start from empty</small></div>
+        <p class="rw-text">When Facebook brings up a new memcache cluster, it first fills misses from a warm cluster instead of the database, so the new, empty cache does not hammer the databases.</p>
+        <div class="rw-lesson"><b>Lesson:</b> Warm caches gradually instead of letting live traffic hit the source.</div>
+        <div class="rw-source">Source: &quot;Scaling Memcache at Facebook&quot;, NSDI 2013</div>
+    </div>
+</div>
+
+
 
 <details class="deep">
 <summary>&#128214; Want to understand it deeply? Read the full explanation</summary>

@@ -8,6 +8,26 @@
 
 <div class="story" data-story="7.5"></div>
 
+<div class="rw-head"><h2>&#127757; In the real world</h2></div>
+<p class="rw-sub">How the biggest companies on the internet meet the idea from this lesson.</p>
+<div class="rw-grid">
+    <div class="rw-card" style="--rw:#336791">
+        <div class="rw-company"><span class="rw-logo">🐘</span>PostgreSQL</div>
+        <div class="rw-stat">Watch blks_hit<small>the database&#x27;s own hit ratio</small></div>
+        <p class="rw-text">DBAs track PostgreSQL&#x27;s buffer cache hit ratio from pg_stat_database. When it drops below about 99% on a read-heavy system, queries start hitting disk and get slower. It is the same hit ratio idea you have used in this course.</p>
+        <div class="rw-lesson"><b>Lesson:</b> If you do not measure the hit ratio, you are guessing.</div>
+        <div class="rw-source">Source: PostgreSQL documentation, statistics collector</div>
+    </div>
+    <div class="rw-card" style="--rw:#3f7f3f">
+        <div class="rw-company"><span class="rw-logo">🧱</span>Memcached</div>
+        <div class="rw-stat">Born at LiveJournal<small>2003</small></div>
+        <p class="rw-text">Brad Fitzpatrick wrote memcached in 2003 to keep LiveJournal fast. It spread to Facebook, Wikipedia, YouTube and Twitter. Today companies choose between memcached, Redis, Valkey, Microsoft&#x27;s Garnet and others, but the ideas are the ones in this course.</p>
+        <div class="rw-lesson"><b>Lesson:</b> Technologies change. Hit ratio, TTLs and invalidation do not.</div>
+        <div class="rw-source">Source: Memcached project history</div>
+    </div>
+</div>
+
+
 
 <details class="deep">
 <summary>&#128214; Want to understand it deeply? Read the full explanation</summary>

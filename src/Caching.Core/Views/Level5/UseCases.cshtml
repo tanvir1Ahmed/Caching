@@ -8,6 +8,33 @@
 
 <div class="story" data-story="5.2"></div>
 
+<div class="rw-head"><h2>&#127757; In the real world</h2></div>
+<p class="rw-sub">How the biggest companies on the internet meet the idea from this lesson.</p>
+<div class="rw-grid">
+    <div class="rw-card" style="--rw:#635bff">
+        <div class="rw-company"><span class="rw-logo">💳</span>Stripe</div>
+        <div class="rw-stat">Rate limiters in Redis<small>protecting a payments API</small></div>
+        <p class="rw-text">Stripe described the rate limiters that protect its API from bursts and abusive clients, built on Redis so the limits are shared by every API server. Legitimate traffic stays fast while floods are rejected with HTTP 429.</p>
+        <div class="rw-lesson"><b>Lesson:</b> A global rate limit needs a shared counter: Redis INCR is ideal.</div>
+        <div class="rw-source">Source: Stripe Engineering, &quot;Scaling your API with rate limiters&quot;, 2017</div>
+    </div>
+    <div class="rw-card" style="--rw:#6e5494">
+        <div class="rw-company"><span class="rw-logo">🐙</span>GitHub</div>
+        <div class="rw-stat">5,000 requests / hour<small>a rate limit you can see</small></div>
+        <p class="rw-text">GitHub&#x27;s REST API allows authenticated users a fixed number of requests per hour and tells you how many remain in response headers. Exceed it and you get an error until the window resets.</p>
+        <div class="rw-lesson"><b>Lesson:</b> Rate limits are everywhere, and they need fast shared counters.</div>
+        <div class="rw-source">Source: GitHub REST API documentation, rate limits</div>
+    </div>
+    <div class="rw-card" style="--rw:#8e44ad">
+        <div class="rw-company"><span class="rw-logo">🏆</span>Game studios</div>
+        <div class="rw-stat">Live leaderboards<small>sorted sets in production</small></div>
+        <p class="rw-text">Many online games keep player rankings in Redis sorted sets: adding points and reading the top 100 or a player&#x27;s rank stays fast even with millions of players.</p>
+        <div class="rw-lesson"><b>Lesson:</b> Sorted sets turn rankings into one command.</div>
+        <div class="rw-source">Source: Common Redis use case</div>
+    </div>
+</div>
+
+
 
 <details class="deep">
 <summary>&#128214; Want to understand it deeply? Read the full explanation</summary>

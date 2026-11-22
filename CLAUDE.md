@@ -87,11 +87,12 @@ src/
 The user is a beginner and wants visuals first, little text up front. Every lesson view follows this order:
 1. Title and one-sentence lead
 2. An animated story: `<div class="story" data-story="N.M"></div>`. Scenes live in `wwwroot/js/stories/levelN.js` as `Stories["N.M"] = { title, height, nodes, links, steps, traces }` and are played by `wwwroot/js/story.js` (Play/Back/Next/Replay, autoplay on scroll, optional speech "Read aloud"). Each step has one short plain-language sentence (`say`) plus actions: `move` (packets, parallel when an array of arrays), `before`/`then` (sequential moves), `flash` (badge), `set` (node subtitle), `hi`, `dim`/`undim`, `clock`, `after`.
-3. The long explanation inside `<details class="deep">` ("Read the full explanation"). Inside it, hard concepts get extra mini animations (`<div class="story mini" data-story="N.M-name">` right after the section heading, scenes in `wwwroot/js/stories/deep.js`), and every static `.flow` diagram is animated automatically by `story.js`.
-4. `<h2><span class="try-it">Try it</span>Live demo</h2>`: calls the API, shows results, timings and an event log (`ICacheEventLog`, filtered by key prefix). Where the scene defines `traces`, the demo calls `StoryPlayer.trace("N.M", source)` so the diagram replays the path the real request took.
-5. "Experiments: do these in order", then extra theory in a second `details.deep`
-6. Key takeaways and common mistakes (`.callout`)
-7. "Read the code" list of the files to study, and a link to the next lesson
+3. "In the real world": `.rw-grid` of `.rw-card`s (company, headline stat, short story, the lesson, and the public source) showing how big companies (Facebook, Netflix, Amazon, Stack Overflow, PostgreSQL, ...) apply the idea or failed with it. Only use well-documented public facts (papers, engineering blogs, incident reports) and name the source.
+4. The long explanation inside `<details class="deep">` ("Read the full explanation"). Inside it, hard concepts get extra mini animations (`<div class="story mini" data-story="N.M-name">` right after the section heading, scenes in `wwwroot/js/stories/deep.js`), and every static `.flow` diagram is animated automatically by `story.js`.
+5. `<h2><span class="try-it">Try it</span>Live demo</h2>`: calls the API, shows results, timings and an event log (`ICacheEventLog`, filtered by key prefix). Where the scene defines `traces`, the demo calls `StoryPlayer.trace("N.M", source)` so the diagram replays the path the real request took.
+6. "Experiments: do these in order", then extra theory in a second `details.deep`
+7. Key takeaways and common mistakes (`.callout`)
+8. "Read the code" list of the files to study, and a link to the next lesson
 
 ## Redis
 - Connection string key: `ConnectionStrings:Redis`, in StackExchange.Redis format (`host:port,user=...,password=...,abortConnect=false`), not the `redis://` URI format.

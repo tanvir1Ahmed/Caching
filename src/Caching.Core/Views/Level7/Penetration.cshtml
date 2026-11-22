@@ -8,6 +8,19 @@
 
 <div class="story" data-story="7.2"></div>
 
+<div class="rw-head"><h2>&#127757; In the real world</h2></div>
+<p class="rw-sub">How the biggest companies on the internet meet the idea from this lesson.</p>
+<div class="rw-grid">
+    <div class="rw-card" style="--rw:#1287b1">
+        <div class="rw-company"><span class="rw-logo">👁️</span>Cassandra &amp; Bigtable</div>
+        <div class="rw-stat">Bloom filters before disk<small>skipping files that cannot match</small></div>
+        <p class="rw-text">Google Bigtable and Apache Cassandra keep a Bloom filter for each data file. Before reading a file from disk, they ask the filter whether the row could be there; if it says &quot;definitely not&quot;, the disk read is skipped.</p>
+        <div class="rw-lesson"><b>Lesson:</b> Bloom filters save expensive lookups for things that do not exist.</div>
+        <div class="rw-source">Source: Bigtable paper (OSDI 2006) and Cassandra documentation</div>
+    </div>
+</div>
+
+
 
 <details class="deep">
 <summary>&#128214; Want to understand it deeply? Read the full explanation</summary>

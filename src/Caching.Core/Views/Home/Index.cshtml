@@ -16,6 +16,15 @@
 <h1>Caching from beginner to advanced</h1>
 <p class="lead">Every lesson has three parts: the idea explained in plain words, a live demo that calls the real API, and a list of the source files to read next.</p>
 
+<h2>Why caching matters</h2>
+<div class="why-strip">
+    <div class="why-item" style="--rw:#ff9900"><div class="rw-stat">1% sales<small>lost per extra 100 ms of latency at Amazon</small></div></div>
+    <div class="why-item" style="--rw:#1877f2"><div class="rw-stat">Billions / sec<small>requests served by Facebook's memcache</small></div></div>
+    <div class="why-item" style="--rw:#e50914"><div class="rw-stat">Nearly all<small>Netflix video streams from cache boxes inside ISPs</small></div></div>
+    <div class="why-item" style="--rw:#f48024"><div class="rw-stat">~9 servers<small>run Stack Overflow's web tier, thanks to two cache levels</small></div></div>
+</div>
+<p class="muted">Every lesson has an <b>In the real world</b> section showing how companies like these use the idea you are learning, and what went wrong when they got it wrong.</p>
+
 <div class="callout">
     <strong>How to study with this portal</strong>
     Go through the levels in order. On each page, read the explanation, run the numbered experiments and watch the numbers and the event log. Then open the files under <em>Read the code</em> and follow the request from the API controller in <code>Caching.Core</code> to the service in <code>Caching.Business</code> and the repository in <code>Caching.Infrastructure</code>. Every endpoint is also in <a href="/swagger" target="_blank">Swagger</a>.

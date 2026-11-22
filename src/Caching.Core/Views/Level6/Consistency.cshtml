@@ -8,6 +8,26 @@
 
 <div class="story" data-story="6.2"></div>
 
+<div class="rw-head"><h2>&#127757; In the real world</h2></div>
+<p class="rw-sub">How the biggest companies on the internet meet the idea from this lesson.</p>
+<div class="rw-grid">
+    <div class="rw-card" style="--rw:#1877f2">
+        <div class="rw-company"><span class="rw-logo">📘</span>Facebook</div>
+        <div class="rw-stat">Leases<small>their fix for this exact race</small></div>
+        <p class="rw-text">Facebook hit the stale-set race shown in this lesson. Their fix, leases, gives a reader a token on a miss; if the key is deleted meanwhile, the token becomes invalid and the stale write is rejected. The paper reports leases also cut peak database query rates from about 17,000 to 1,300 per second.</p>
+        <div class="rw-lesson"><b>Lesson:</b> The version-check fix in the demo is the same idea as Facebook&#x27;s leases.</div>
+        <div class="rw-source">Source: &quot;Scaling Memcache at Facebook&quot;, NSDI 2013</div>
+    </div>
+    <div class="rw-card" style="--rw:#ff9900">
+        <div class="rw-company"><span class="rw-logo">📦</span>Amazon</div>
+        <div class="rw-stat">The shopping cart that never says no<small>eventual consistency by design</small></div>
+        <p class="rw-text">Amazon&#x27;s Dynamo paper describes a shopping cart that always accepts &quot;add to cart&quot;, even during failures. The trade-off: in rare cases a deleted item can reappear. For Amazon, losing an add was worse than showing an extra item.</p>
+        <div class="rw-lesson"><b>Lesson:</b> Consistency is a business decision: choose what may be stale.</div>
+        <div class="rw-source">Source: &quot;Dynamo: Amazon&#x27;s Highly Available Key-value Store&quot;, SOSP 2007</div>
+    </div>
+</div>
+
+
 
 <details class="deep">
 <summary>&#128214; Want to understand it deeply? Read the full explanation</summary>

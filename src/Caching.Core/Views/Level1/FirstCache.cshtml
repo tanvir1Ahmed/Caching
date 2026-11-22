@@ -8,6 +8,26 @@
 
 <div class="story" data-story="1.2"></div>
 
+<div class="rw-head"><h2>&#127757; In the real world</h2></div>
+<p class="rw-sub">How the biggest companies on the internet meet the idea from this lesson.</p>
+<div class="rw-grid">
+    <div class="rw-card" style="--rw:#1877f2">
+        <div class="rw-company"><span class="rw-logo">📘</span>Facebook</div>
+        <div class="rw-stat">Look-aside cache<small>the same pattern you just built</small></div>
+        <p class="rw-text">Facebook&#x27;s memcache is a &quot;demand-filled look-aside cache&quot;: the web server checks memcache, reads the database on a miss, and puts the value in memcache. That is exactly the cache-aside code in this lesson, running across thousands of servers.</p>
+        <div class="rw-lesson"><b>Lesson:</b> Cache-aside is not a toy pattern: it powers the biggest sites.</div>
+        <div class="rw-source">Source: &quot;Scaling Memcache at Facebook&quot;, NSDI 2013</div>
+    </div>
+    <div class="rw-card" style="--rw:#1877f2">
+        <div class="rw-company"><span class="rw-logo">📘</span>Facebook</div>
+        <div class="rw-stat">Delete, don&#x27;t update<small>how they handle writes</small></div>
+        <p class="rw-text">When data changes, Facebook deletes the cache key instead of writing the new value into it. Deletes are idempotent: doing them twice is harmless. This is the &quot;Remove from cache&quot; fix you used for stale data.</p>
+        <div class="rw-lesson"><b>Lesson:</b> Removing a key after a change is the simplest safe invalidation.</div>
+        <div class="rw-source">Source: &quot;Scaling Memcache at Facebook&quot;, NSDI 2013</div>
+    </div>
+</div>
+
+
 
 <details class="deep">
 <summary>&#128214; Want to understand it deeply? Read the full explanation</summary>

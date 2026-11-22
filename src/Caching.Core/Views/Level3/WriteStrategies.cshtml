@@ -8,6 +8,26 @@
 
 <div class="story" data-story="3.2"></div>
 
+<div class="rw-head"><h2>&#127757; In the real world</h2></div>
+<p class="rw-sub">How the biggest companies on the internet meet the idea from this lesson.</p>
+<div class="rw-grid">
+    <div class="rw-card" style="--rw:#ff9900">
+        <div class="rw-company"><span class="rw-logo">📦</span>Amazon DynamoDB</div>
+        <div class="rw-stat">DAX: write-through<small>writes update the cache too</small></div>
+        <p class="rw-text">For items, DAX is also a write-through cache: a write goes to DynamoDB and, once it succeeds, into the DAX cache. Reads right after a write are fast and fresh.</p>
+        <div class="rw-lesson"><b>Lesson:</b> Write-through is what you want when data is read right after it is written.</div>
+        <div class="rw-source">Source: AWS DynamoDB Accelerator documentation</div>
+    </div>
+    <div class="rw-card" style="--rw:#1877f2">
+        <div class="rw-company"><span class="rw-logo">📘</span>Facebook</div>
+        <div class="rw-stat">Write-around by delete<small>their choice at scale</small></div>
+        <p class="rw-text">Facebook updates the database and then deletes the memcache key, letting the next reader refill it. With thousands of write paths, &quot;delete on write&quot; is simpler and safer than computing the new cached value everywhere.</p>
+        <div class="rw-lesson"><b>Lesson:</b> Write-around keeps writes simple when there are many writers.</div>
+        <div class="rw-source">Source: &quot;Scaling Memcache at Facebook&quot;, NSDI 2013</div>
+    </div>
+</div>
+
+
 
 <details class="deep">
 <summary>&#128214; Want to understand it deeply? Read the full explanation</summary>

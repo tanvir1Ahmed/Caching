@@ -8,6 +8,26 @@
 
 <div class="story" data-story="7.1"></div>
 
+<div class="rw-head"><h2>&#127757; In the real world</h2></div>
+<p class="rw-sub">How the biggest companies on the internet meet the idea from this lesson.</p>
+<div class="rw-grid">
+    <div class="rw-card" style="--rw:#636466">
+        <div class="rw-company"><span class="rw-logo">📖</span>Wikipedia</div>
+        <div class="rw-stat">The Michael Jackson problem<small>June 2009</small></div>
+        <p class="rw-text">When Michael Jackson died, millions rushed to his Wikipedia article while editors kept changing it. Each edit invalidated the cached page and many servers tried to re-render it at once. Wikipedia added PoolCounter so only one worker renders a page while others wait.</p>
+        <div class="rw-lesson"><b>Lesson:</b> A hot key plus invalidation is a recipe for a stampede.</div>
+        <div class="rw-source">Source: MediaWiki PoolCounter documentation</div>
+    </div>
+    <div class="rw-card" style="--rw:#c13584">
+        <div class="rw-company"><span class="rw-logo">📷</span>Instagram</div>
+        <div class="rw-stat">Cache the promise<small>not just the value</small></div>
+        <p class="rw-text">Instagram described storing a promise for the value being computed, so concurrent requests for the same missing key wait for one computation instead of starting their own. This is the single-flight protection from the demo.</p>
+        <div class="rw-lesson"><b>Lesson:</b> Let one request rebuild, and make the others wait for it.</div>
+        <div class="rw-source">Source: Instagram Engineering, &quot;Thundering Herds &amp; Promises&quot;, 2015</div>
+    </div>
+</div>
+
+
 
 <details class="deep">
 <summary>&#128214; Want to understand it deeply? Read the full explanation</summary>
