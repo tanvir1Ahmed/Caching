@@ -66,6 +66,9 @@ public static class DependencyInjection
         services.AddScoped<IDistributedLockService, DistributedLockService>();
         services.AddScoped<IRedisInfoService, RedisInfoService>();
 
+        services.AddSingleton<IInvalidationService, InvalidationService>();
+        services.AddSingleton<IConsistencyService, ConsistencyService>();
+
         return services;
     }
 

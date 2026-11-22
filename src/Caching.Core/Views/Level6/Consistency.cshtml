@@ -1,0 +1,107 @@
+@{
+    ViewData["Title"] = "Race conditions and consistency";
+    ViewData["Lesson"] = "l6-consistency";
+}
+
+<h1>6.2 Race conditions and consistency</h1>
+<p class="lead">Even with perfect "delete on write" code, a cache can end up holding old data forever. This lesson reproduces the classic cache-aside race and shows two ways to fix it.</p>
+
+<h2>The race, step by step</h2>
+<p>Two requests for the same product run at the same time: a <b>reader</b> with a cache miss and a <b>writer</b> changing the price.</p>
+<div class="card">
+    <table>
+        <thead><tr><th>Time</th><th>Reader</th><th>Writer</th><th>Cache</th></tr></thead>
+        <tbody>
+            <tr><td>1</td><td>Cache miss, reads the database: gets the <b>old</b> price</td><td></td><td>empty</td></tr>
+            <tr><td>2</td><td>Still busy (slow network, GC pause...)</td><td>Updates the database to the new price</td><td>empty</td></tr>
+            <tr><td>3</td><td></td><td>Deletes the cache key</td><td>empty</td></tr>
+            <tr><td>4</td><td>Writes the <b>old</b> price into the cache</td><td></td><td><b>old price</b></td></tr>
+        </tbody>
+    </table>
+</div>
+<p>The writer's delete happened <b>before</b> the reader's write, so it achieved nothing. The cache now holds the old price until the TTL ends, or forever if there is no TTL. Everything was "correct" code, just in an unlucky order. Under real traffic, unlucky orders happen every day.</p>
+
+<h2>Fixes</h2>
+<div class="card">
+    <table>
+        <thead><tr><th>Fix</th><th>Idea</th><th>Trade-off</th></tr></thead>
+        <tbody>
+            <tr><td><b>TTL as a safety net</b></td><td>Always set a TTL, so a stale entry dies eventually</td><td>Limits the damage, does not prevent it</td></tr>
+            <tr><td><b>Version check</b> (compare before set)</td><td>The reader remembers the version before reading. Before writing to the cache, it checks the version again and skips the write if it changed</td><td>Needs a shared version per key. In Redis, use a Lua script or <code>WATCH</code> / transaction to make check-and-set atomic</td></tr>
+            <tr><td><b>Delayed double delete</b></td><td>The writer deletes the key, then deletes it again a moment later, after any in-flight reader has finished</td><td>Simple. There is still a short stale window, and the delay is a guess</td></tr>
+            <tr><td><b>Versioned keys</b> (lesson 6.1)</td><td>The writer bumps the version, so readers use a new key. A late reader writes to the old key, which nobody reads</td><td>Old keys use memory until they expire</td></tr>
+            <tr><td><b>Lease / lock</b></td><td>Only one reader may fill a key, and a write cancels its lease (the approach in Facebook's memcache paper)</td><td>More complex</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<h2>Live demo</h2>
+<p>The server runs the reader and the writer at the same time with carefully chosen delays, so the race happens every time. Each run takes about 4 seconds and really changes the product's price.</p>
+<div class="card">
+    <div class="toolbar">
+        <label class="field">Product
+            <select id="productId"></select>
+        </label>
+        <button class="btn danger" id="btnNaive">Run: plain delete on write</button>
+        <button class="btn primary" id="btnVersion">Run: with version check</button>
+        <button class="btn primary" id="btnDouble">Run: with delayed double delete</button>
+    </div>
+    <div class="grid grid-3">
+        <div class="card stat"><div class="value" id="cached">-</div><div class="label">Price in cache at the end</div></div>
+        <div class="card stat"><div class="value" id="database">-</div><div class="label">Price in database at the end</div></div>
+        <div class="card stat"><div class="value" id="verdict">-</div><div class="label">Result</div></div>
+    </div>
+</div>
+<div class="card">
+    <b>Timeline</b>
+    <table>
+        <thead><tr><th>Time</th><th>Who</th><th>What happened</th></tr></thead>
+        <tbody id="steps"><tr><td colspan="3" class="muted">Run a scenario.</td></tr></tbody>
+    </table>
+</div>
+
+<h2>Experiments</h2>
+<ol class="steps">
+    <li><b>See the bug.</b> Click <em>Run: plain delete on write</em>. The writer deletes at about 1.7 s, the reader writes the old price at about 2.3 s. Result: the cache holds the old price and the database holds the new one. <span class="badge stale">Stale</span></li>
+    <li><b>Version check.</b> Click <em>Run: with version check</em>. The reader notices the version changed while it was busy and skips its cache write. The cache stays empty, and the next read loads the new price. <span class="badge fresh">Fresh</span></li>
+    <li><b>Double delete.</b> Click <em>Run: with delayed double delete</em>. The reader still writes the old price at 2.3 s, but the writer's second delete at about 2.9 s removes it. Stale for about 0.6 seconds instead of until the TTL.</li>
+</ol>
+
+<h2>Consistency models in plain words</h2>
+<div class="grid grid-2">
+    <div class="card">
+        <b>Strong consistency</b>
+        <p class="muted">Every read returns the latest write. With a cache in the way, this is very hard and expensive. If you truly need it (balances, stock during checkout), read the database.</p>
+    </div>
+    <div class="card">
+        <b>Eventual consistency</b>
+        <p class="muted">Reads may be stale for a while, but the system converges to the latest value. Almost every cache gives you this. Your job is to make the "while" short and bounded.</p>
+    </div>
+</div>
+<p><b>Read-your-writes</b> is a useful middle ground: the user who changed something must see their change right away, even if others see it a few seconds later. Write-through for that user's data, or bypassing the cache right after their write, gives you this.</p>
+
+<h2>What you should take away</h2>
+<div class="callout tip">
+    <strong>Key points</strong>
+    Delete-on-write has a race: a slow reader can put old data back after the delete. Protect against it with a version check before writing to the cache, a delayed second delete, or versioned keys, and always keep a TTL. Caches are eventually consistent: decide how stale each piece of data may be, and do not cache data that must be strongly consistent.
+</div>
+<div class="callout danger">
+    <strong>Common mistakes</strong>
+    Assuming a cache bug is impossible because each piece of code looks right. Caching without any TTL. Updating the cache with a value computed in the write path that differs from what a fresh read would return.
+</div>
+
+<div class="callout">
+    <strong>Level 6 complete</strong>
+    You know the main invalidation strategies, the classic race condition and its fixes, and what consistency a cache can realistically give you. Level 7 covers the problems that appear at scale: stampedes, penetration, avalanches, hot keys, multi-level caches and monitoring.
+</div>
+
+<h2>Read the code</h2>
+<ul class="code-ref">
+    <li><code>Caching.Business/Service/Implementation/ConsistencyService.cs</code>: the reader and writer tasks, the timings, the version check and the double delete.</li>
+</ul>
+
+<div class="next-link"><a class="btn primary" href="/Level7">Next: Level 7, advanced problems &rarr;</a></div>
+
+@section Scripts {
+    <script src="~/js/level6/consistency.js" asp-append-version="true"></script>
+}

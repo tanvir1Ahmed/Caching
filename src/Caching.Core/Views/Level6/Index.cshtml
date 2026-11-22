@@ -1,0 +1,123 @@
+@{
+    ViewData["Title"] = "Invalidation strategies";
+    ViewData["Lesson"] = "l6-index";
+}
+
+<h1>6.1 Cache invalidation strategies</h1>
+<p class="lead">"There are only two hard things in computer science: cache invalidation and naming things." This lesson compares the four main ways to stop serving data that has changed.</p>
+
+<h2>The four strategies</h2>
+<div class="card">
+    <table>
+        <thead><tr><th>Strategy</th><th>On write</th><th>Stale for</th><th>Cost and limits</th></tr></thead>
+        <tbody>
+            <tr><td><b>TTL only</b></td><td>Nothing</td><td>Up to the TTL</td><td>Simplest, no coupling to writes. You must accept the staleness window.</td></tr>
+            <tr><td><b>Delete on write</b> (explicit / event based)</td><td><code>Remove(key)</code></td><td>Almost zero</td><td>Every write path must know every affected key. Easy to forget one.</td></tr>
+            <tr><td><b>Versioned keys</b></td><td>Increase a version number. The key is <code>product:42:v7</code></td><td>Almost zero</td><td>No delete needed and no race with in-flight readers. Old versions waste memory until their TTL ends. The version itself must be shared (for example a Redis <code>INCR</code>).</td></tr>
+            <tr><td><b>Group / tag</b></td><td>Invalidate the whole group at once</td><td>Almost zero</td><td>Great when one change affects many entries (a category, a price list). Clears more than strictly needed.</td></tr>
+        </tbody>
+    </table>
+</div>
+<p>In practice you combine them: an explicit invalidation for freshness, <b>plus</b> a TTL as a safety net in case an invalidation is missed or fails.</p>
+
+<h2>How each one is implemented here</h2>
+<div class="grid grid-2">
+    <div class="card">
+        <b>Delete on write</b>
+        <pre><code>await repository.UpdatePriceAsync(id, price);
+cache.Remove($"level6:delete:product:{id}");</code></pre>
+    </div>
+    <div class="card">
+        <b>Versioned keys</b>
+        <pre><code>var version = versions.GetOrAdd(id, 1);
+var key = $"level6:version:product:{id}:v{version}";
+
+versions.AddOrUpdate(id, 2, (_, v) =&gt; v + 1);</code></pre>
+    </div>
+    <div class="card">
+        <b>Group with a change token</b>
+        <pre><code>options.AddExpirationToken(
+    new CancellationChangeToken(groupToken.Token));
+
+await groupToken.CancelAsync();</code></pre>
+        <p class="muted">Every entry registered with the token expires when it is cancelled. Equivalent tools: HybridCache and output cache tags, or a Redis set listing the keys of a group.</p>
+    </div>
+    <div class="card">
+        <b>TTL only</b>
+        <pre><code>cache.Set(key, product, TimeSpan.FromSeconds(60));</code></pre>
+        <p class="muted">Nothing happens on write.</p>
+    </div>
+</div>
+
+<h2>Where should invalidation happen?</h2>
+<ul>
+    <li><b>In the service that writes</b> (what this project does): simple, but every write path must remember it.</li>
+    <li><b>Domain events</b>: the write raises "ProductPriceChanged", and a handler invalidates. Writers do not need to know about caches.</li>
+    <li><b>From the database</b>: change data capture (Debezium, SQL Server CDC) or an outbox table publishes every change, so even writes made outside your app (scripts, other services) invalidate the cache.</li>
+    <li><b>Across servers</b>: local caches need a broadcast (Redis Pub/Sub, lesson 5.3 and 7.4).</li>
+</ul>
+
+<h2>Live demo</h2>
+<p>The same product is cached four times, once per strategy. One button updates the price in the database and applies all four invalidation strategies, so you can compare them directly.</p>
+<div class="card">
+    <div class="toolbar">
+        <label class="field">Product
+            <select id="productId"></select>
+        </label>
+        <button class="btn primary" id="btnReadAll">Read all four</button>
+        <button class="btn" id="btnUpdate">Update price in database</button>
+        <button class="btn" id="btnReset">Reset caches</button>
+        <span id="dbPrice" class="muted"></span>
+    </div>
+    <p class="muted" id="state"></p>
+</div>
+<div class="grid grid-2">
+    @foreach (var (strategy, title) in new[] { ("ttl", "TTL only (60 s)"), ("delete", "Delete on write"), ("version", "Versioned keys"), ("group", "Group token") })
+    {
+        <div class="card" data-strategy="@strategy">
+            <b>@title</b>
+            <div class="toolbar"><button class="btn" data-role="read">Read</button></div>
+            <div class="result-box" data-role="result">-</div>
+            <div class="mono muted" data-role="key"></div>
+        </div>
+    }
+</div>
+<div class="card">
+    <b>Event log</b>
+    <div class="events">
+        <table>
+            <thead><tr><th>Time</th><th>Event</th><th>Key</th><th>Detail</th></tr></thead>
+            <tbody id="events"></tbody>
+        </table>
+    </div>
+</div>
+
+<h2>Experiments</h2>
+<ol class="steps">
+    <li><b>Warm up.</b> Click <em>Read all four</em> twice. All four end as cache hits with the same price.</li>
+    <li><b>Change the data.</b> Click <em>Update price in database</em>, then <em>Read all four</em>. TTL only still shows the <b>old</b> price (stale for up to 60 seconds). The other three miss and load the new price.</li>
+    <li><b>Versioned keys.</b> Look at the key under the versioned card: it went from <code>v1</code> to <code>v2</code>. The old <code>v1</code> entry was never deleted; nobody asks for it any more.</li>
+    <li><b>Group scope.</b> Read all four for product 1 and product 2. Update product 1 only, then read product 2. Its group-token entry was also invalidated (miss), while delete-on-write and versioned entries for product 2 are still hits. Groups trade precision for simplicity.</li>
+</ol>
+
+<h2>What you should take away</h2>
+<div class="callout tip">
+    <strong>Key points</strong>
+    TTL alone bounds staleness but never removes it. Explicit deletes remove it but must be called on every write path. Versioned keys avoid deletes and races by changing the key. Groups invalidate many related entries in one step. Always keep a TTL as a safety net.
+</div>
+<div class="callout danger">
+    <strong>Common mistakes</strong>
+    Forgetting a write path (admin panel, import job, another service writing the same table). Invalidating before the database commit, so a reader re-caches the old value. Keys without TTL that live forever if an invalidation is lost.
+</div>
+
+<h2>Read the code</h2>
+<ul class="code-ref">
+    <li><code>Caching.Business/Service/Implementation/InvalidationService.cs</code>: all four strategies, applied by one update.</li>
+    <li><code>Caching.Business/Constant/CacheKeys.cs</code>: <code>VersionedProduct</code> builds keys with the version number.</li>
+</ul>
+
+<div class="next-link"><a class="btn primary" href="/Level6/Consistency">Next: Race conditions and consistency &rarr;</a></div>
+
+@section Scripts {
+    <script src="~/js/level6/invalidation.js" asp-append-version="true"></script>
+}

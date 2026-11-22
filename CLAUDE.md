@@ -15,8 +15,8 @@ This repository is a **caching course**. The user is learning caching from begin
 | 3 | Strategies: cache-aside, read-through, write-through, write-behind, write-around, refresh-ahead | Done |
 | 4 | Distributed caching: IDistributedCache (Redis, SQL), HybridCache, serialization | Done |
 | 5 | Redis in depth: data types, Pub/Sub, distributed locks, rate limiting, eviction policies, persistence, replication, cluster | Done |
-| 6 | Invalidation and consistency: time, event, tag and version based invalidation, stale data | Next |
-| 7 | Advanced: stampede, penetration, avalanche, hot keys, multi-level cache, Bloom filter, monitoring, Memcached, NCache, EF Core second-level cache | Planned |
+| 6 | Invalidation and consistency: time, event, tag and version based invalidation, stale data | Done |
+| 7 | Advanced: stampede, penetration, avalanche, hot keys, multi-level cache, Bloom filter, monitoring, Memcached, NCache, EF Core second-level cache | Next |
 
 Update this table when a level is finished.
 
