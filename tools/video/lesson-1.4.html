@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Lesson 1.4 video</title>
+<style>
+    html, body { margin: 0; padding: 0; background: #0b1726; overflow: hidden; }
+    svg { display: block; }
+    .mono { font-family: "DejaVu Sans Mono", monospace; }
+    .sans { font-family: "Inter", sans-serif; }
+</style>
+</head>
+<body>
+<svg id="stage" xmlns="http://www.w3.org/2000/svg"></svg>
+<script src="kit.js"></script>
+<script>
+header("1.4", "Size limits and eviction", "When memory is full, something has to go", ["EVICTION", "LRU"]);
+if (!vertical) D.setAttribute("transform", "translate(980,150) scale(0.8)");
+
+const chip = txt(D, 500, 70, "", { fill: C.cyan, "font-size": 28, "letter-spacing": 2 });
+const box = el("g", { opacity: 0 }, D);
+el("rect", { x: 50, y: 240, width: 900, height: 230, rx: 20, fill: "#0e1d2f", stroke: C.cyan, "stroke-width": 2.5 }, box);
+txt(box, 120, 225, "cache", { fill: C.cyan, "font-size": 28, "text-anchor": "start" });
+const capacity = txt(box, 930, 505, "", { fill: C.muted, "font-size": 24, "text-anchor": "end" });
+const full = badge(D, 500, 545, "FULL", C.red, "#2b0606");
+
+const prio = { L: ["Low", "#6d7f94"], N: ["Normal", C.cyan], H: ["High", C.orange], X: ["Never", C.green] };
+const entries = [
+    { id: "p1", age: 50, p: "N" }, { id: "p2", age: 3, p: "N" }, { id: "p3", age: 12, p: "H" }, { id: "p4", age: 40, p: "N" }, { id: "p5", age: 7, p: "L" },
+    { id: "p6", age: 2, p: "N" }, { id: "p7", age: 25, p: "X" }, { id: "p8", age: 9, p: "L" }, { id: "p9", age: 30, p: "H" }, { id: "p10", age: 5, p: "N" }, { id: "p11", age: 0, p: "N", size: 2 }
+];
+const slotW = 84, gap = 4, left = 72;
+entries.forEach(e => {
+    e.g = el("g", { opacity: 0 }, D);
+    e.rect = el("rect", { y: 270, width: (e.size ?? 1) * slotW + ((e.size ?? 1) - 1) * gap, height: 120, rx: 10, fill: "#13304a", stroke: C.cyan, "stroke-width": 2.5 }, e.g);
+    e.label = txt(e.g, 0, 340, e.id, { "font-size": 26, "font-weight": 700 });
+    e.sub = txt(e.g, 0, 428, "", { "font-size": 19, fill: C.muted });
+});
+const removed = txt(D, 400, 548, "", { fill: C.red, "font-size": 28, opacity: 0 });
+const legend = el("g", { opacity: 0 }, D);
+Object.values(prio).forEach(([name, color], i) => {
+    const x = 90 + i * 225;
+    el("rect", { x, y: 590, width: 26, height: 26, rx: 6, fill: color }, legend);
+    txt(legend, x + 38, 612, name, { "font-size": 22, fill: C.text, "text-anchor": "start" });
+});
+
+const mem = el("g", { opacity: 0 }, D);
+txt(mem, 500, 640, "memcached · Facebook · Wikipedia", { fill: C.text, "font-size": 28 });
+txt(mem, 500, 680, "every server gets a fixed amount of RAM", { fill: C.muted, "font-size": 24 });
+const chart = el("g", { opacity: 0 }, D);
+el("line", { x1: 120, y1: 870, x2: 880, y2: 870, stroke: "#2c4258", "stroke-width": 2 }, chart);
+el("line", { x1: 120, y1: 730, x2: 120, y2: 870, stroke: "#2c4258", "stroke-width": 2 }, chart);
+const line = el("polyline", { fill: "none", stroke: C.orange, "stroke-width": 4, filter: "url(#glow)" }, chart);
+const counter = txt(chart, 880, 725, "", { fill: C.orange, "font-size": 30, "text-anchor": "end" });
+txt(chart, 130, 725, "evictions / min", { fill: C.muted, "font-size": 22, "text-anchor": "start" });
+const tooSmall = txt(chart, 500, 930, "cache too small → add memory", { fill: C.red, "font-size": 30, "font-weight": 700, filter: "url(#glow)", opacity: 0 });
+
+captions = [
+    [0, 4.3, "Memory is limited, so every serious cache needs a size limit."],
+    [4.3, 8.6, "When the cache is full, something has to go. That's called eviction."],
+    [8.6, 15.6, "Most common rule: least recently used. Throw out what nobody touched for the longest."],
+    [15.6, 18.8, "In .NET, you can also give entries a priority."],
+    [18.8, 23.1, "Low priority entries go first, high priority ones last."],
+    [23.1, 31.3, "Memcached at Facebook and Wikipedia gets a fixed amount of memory too."],
+    [31.3, 34.0, "Engineers watch the eviction counter closely."],
+    [34.0, 37.4, "If it keeps rising, the cache is too small."],
+    [37.4, 40.0, "In the demo: fill the cache, push one more item in, watch what gets removed."]
+];
+endCard("Size limits and eviction", "Lesson 1.4 · try the live demo", 39.6);
+
+play(t => {
+    show(box, seg(t, 1.0, 1.8) * (1 - 0.7 * seg(t, 23.0, 23.6)));
+    show(chip, t > 4.3 ? 1 : 0);
+    chip.textContent =
+        t < 8.6 ? "THE CACHE IS FULL" :
+        t < 15.6 ? "LEAST RECENTLY USED GOES FIRST" :
+        t < 23.1 ? "PRIORITY: LOW GOES FIRST" :
+        t < 31.3 ? "REAL SYSTEMS HAVE FIXED MEMORY" :
+        t < 37.4 ? "WATCH THE EVICTION COUNTER" :
+        "TRY IT IN THE DEMO";
+
+    const lru = seg(t, 13.2, 14.0);
+    const close = ease(seg(t, 14.0, 14.7));
+    const newIn = ease(seg(t, 14.7, 15.4));
+    const lowOut = seg(t, 21.0, 21.8);
+    let slot = 0, slotAfter = 0;
+    entries.forEach((e, i) => {
+        const isNew = e.id === "p11";
+        const isLru = e.id === "p1" || e.id === "p4";
+        const isLow = e.p === "L";
+        const w = (e.size ?? 1);
+        const appear = isNew ? 1 : seg(t, 2.0 + i * 0.18, 2.4 + i * 0.18);
+        let x;
+        if (isNew) {
+            x = left + 8 * (slotW + gap) - (1 - newIn) * 0 ;
+            const startX = left + 8 * (slotW + gap);
+            e.g.setAttribute("transform", `translate(${startX}, ${-170 * (1 - newIn)})`);
+        } else {
+            const before = left + slot * (slotW + gap);
+            const after = left + slotAfter * (slotW + gap);
+            x = before + (after - before) * close;
+            e.g.setAttribute("transform", `translate(${x},0)`);
+        }
+        const cx = (w * slotW + (w - 1) * gap) / 2;
+        e.rect.setAttribute("x", 0);
+        e.label.setAttribute("x", cx);
+        e.sub.setAttribute("x", cx);
+        let o = appear;
+        if (isLru) o *= 1 - lru;
+        if (isNew) o = t < 5.0 ? 0 : t < 8.6 ? 1 : t < 14.7 ? (t < 9.0 ? 1 : 0.9) : 1;
+        if (isLow) o *= 1 - lowOut;
+        show(e.g, o * (1 - 0.7 * seg(t, 23.0, 23.6)));
+
+        const priorityView = t > 15.8;
+        const color = priorityView ? prio[e.p][1] : isLru && t > 12.2 ? C.red : C.cyan;
+        e.rect.setAttribute("stroke", isLow && t > 20.8 ? C.red : color);
+        e.rect.setAttribute("fill", priorityView ? "#13253a" : "#13304a");
+        e.label.setAttribute("fill", priorityView ? prio[e.p][1] : C.text);
+        e.sub.textContent = isNew ? (t < 14.7 ? "new · size 2" : "added") : priorityView ? prio[e.p][0] : t > 9.2 ? `${e.age}s ago` : "";
+        e.sub.setAttribute("fill", isLru && t > 12.2 && !priorityView ? C.red : C.muted);
+        if (!isNew) {
+            slot += w;
+            if (!isLru) slotAfter += w;
+        }
+    });
+
+    capacity.textContent = t < 13.4 ? "10 / 10 units" : t < 14.7 ? "8 / 10 units" : t < 21.4 ? "10 / 10 units" : "8 / 10 units";
+    show(full, fade(t, 5.4, 8.5, 0.3));
+    show(removed, fade(t, 13.2, 15.4, 0.3));
+    removed.textContent = "removed p1 and p4 · touched longest ago";
+    show(legend, fade(t, 16.0, 23.0, 0.4));
+
+    show(mem, seg(t, 23.4, 24.2));
+    show(chart, seg(t, 31.4, 32.0));
+    const n = 40;
+    const pts = [];
+    const grow = seg(t, 31.6, 36.8);
+    for (let i = 0; i <= n * grow; i++) {
+        const p = i / n;
+        const y = 860 - 120 * Math.pow(p, 1.8) - 8 * Math.sin(i * 1.7);
+        pts.push(`${120 + 760 * p},${y}`);
+    }
+    line.setAttribute("points", pts.join(" "));
+    counter.textContent = `${Math.round(30 + 4200 * Math.pow(grow, 1.8)).toLocaleString("en-US")} / min`;
+    show(tooSmall, fade(t, 34.4, 37.4, 0.4));
+});
+</script>
+</body>
+</html>

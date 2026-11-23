@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Lesson 1.2 video</title>
+<style>
+    html, body { margin: 0; padding: 0; background: #0b1726; overflow: hidden; }
+    svg { display: block; }
+    .mono { font-family: "DejaVu Sans Mono", monospace; }
+    .sans { font-family: "Inter", sans-serif; }
+</style>
+</head>
+<body>
+<svg id="stage" xmlns="http://www.w3.org/2000/svg"></svg>
+<script src="kit.js"></script>
+<script>
+header("1.2", "Your first cache", "IMemoryCache + the cache-aside pattern", ["CACHE-ASIDE", "STALE DATA"]);
+
+const chip = txt(D, 500, 70, "", { fill: C.cyan, "font-size": 28, "letter-spacing": 2 });
+const toCache = link(D, "M 255 545 L 420 360", C.cyan);
+const toDb = link(D, "M 290 660 C 450 790 620 800 720 740", C.orange);
+
+const ghosts = el("g", { opacity: 0 }, D);
+cube(ghosts, 90, 820, 60);
+cube(ghosts, 230, 880, 60);
+cube(ghosts, 60, 640, 50);
+
+const app = el("g", { opacity: 0 }, D);
+cube(app, 200, 620, 110);
+txt(app, 200, 800, "app", { fill: C.cyan, "font-size": 34 });
+
+const cache = el("g", { opacity: 0 }, D);
+cylinder(cache, 500, 220, 105, 34, 140, C.cyan, 3);
+txt(cache, 500, 160, "IMemoryCache", { fill: C.cyan, "font-size": 32 });
+const cacheValue = txt(cache, 470, 440, "", { fill: C.text, "font-size": 26 });
+
+const db = el("g", { opacity: 0 }, D);
+cylinder(db, 850, 470, 130, 44, 260, C.orange, 6);
+txt(db, 850, 870, "database", { fill: C.orange, "font-size": 34 });
+const dbValue = txt(db, 850, 915, "", { fill: C.muted, "font-size": 26 });
+
+const hit = badge(D, 660, 260, "HIT", C.cyan);
+const miss = badge(D, 660, 260, "MISS", C.orange, "#2b1600");
+const stale = badge(D, 660, 260, "STALE", C.red, "#2b0606");
+const fast = txt(D, 290, 340, "0.01 ms", { fill: C.cyan, "font-size": 40, filter: "url(#glow)", opacity: 0 });
+const slow = txt(D, 500, 820, "800 ms", { fill: C.orange, "font-size": 44, filter: "url(#glow)", opacity: 0 });
+
+const demo = card("LIVE DEMO", C.cyan);
+demo.source.textContent = "Get without cache  →  Get with cache";
+
+captions = [
+    [0, 7.1, "Build your first real cache with IMemoryCache, using cache-aside."],
+    [7.1, 10.4, "The rule is simple. First, look in the cache."],
+    [10.4, 15.2, "Answer there? That's a HIT: done in a fraction of a millisecond."],
+    [15.2, 21.2, "Not there? A MISS. Read the database, then save the answer in the cache."],
+    [21.2, 24.8, "Facebook uses exactly this pattern across thousands of servers."],
+    [24.8, 34.6, "The catch: the cache is a copy. Change the price, and the cache still shows the old one: STALE data."],
+    [34.6, 38.2, "The fix: remove the cached copy when the data changes."],
+    [38.2, 44.0, "Try the live demo: watch 800 ms drop to almost zero."]
+];
+endCard("Your first cache", "Lesson 1.2 · try the live demo", 43.6);
+
+play(t => {
+    show(D, 1 - 0.8 * seg(t, 38.0, 38.6));
+    show(app, seg(t, 3.0, 3.8));
+    show(cache, seg(t, 4.0, 4.8));
+    show(db, seg(t, 5.0, 5.8));
+    [toCache, toDb].forEach(l => {
+        show(l, seg(t, 5.6, 6.3) * 0.9);
+        l.setAttribute("stroke-dashoffset", -t * 30);
+    });
+    show(ghosts, fade(t, 21.3, 24.7, 0.4));
+
+    chip.textContent =
+        t < 7.1 ? "" :
+        t < 10.4 ? "RULE 1 · LOOK IN THE CACHE FIRST" :
+        t < 15.2 ? "REQUEST · product 1" :
+        t < 21.2 ? "REQUEST · product 2" :
+        t < 24.8 ? "FACEBOOK · THOUSANDS OF SERVERS" :
+        t < 34.6 ? "THE CATCH · THE CACHE IS A COPY" :
+        "FIX · REMOVE THE KEY ON CHANGE";
+    show(chip, t < 7.1 ? 0 : 1);
+
+    cacheValue.textContent =
+        t < 20.4 ? "product 1 = $1200" :
+        t < 35.4 ? "p1 = $1200 · p2 = $890" :
+        t < 37.5 ? "p1 removed · p2 = $890" :
+        "p1 = $1300 · p2 = $890";
+    cacheValue.setAttribute("fill", t > 35.4 && t < 37.5 ? C.red : t > 32.6 && t < 35.4 ? C.red : C.text);
+    dbValue.textContent = t < 28.4 ? "p1 = $1200" : "p1 = $1300";
+    dbValue.setAttribute("fill", t > 28.4 && t < 30 ? C.orange : C.muted);
+    dbValue.setAttribute("filter", t > 28.4 && t < 30 ? "url(#glow)" : "");
+
+    trip(toCache, t, 8.4, 9.9, C.cyan, false);
+    trip(toCache, t, 10.6, 12.0, C.cyan);
+    show(hit, fade(t, 11.3, 15.0, 0.3));
+    show(fast, fade(t, 11.3, 15.0, 0.3));
+
+    trip(toCache, t, 15.4, 16.4, C.cyan, false);
+    show(miss, fade(t, 16.2, 20.9, 0.3));
+    trip(toDb, t, 17.2, 19.6, C.orange);
+    show(slow, fade(t, 17.6, 20.9, 0.3));
+    trip(toCache, t, 19.7, 20.5, C.cyan, false);
+
+    if (t > 21.4 && t < 24.6) for (let i = 0; i < 12; i++) packet(toCache, ((t - 21.4) * 1.4 + i / 12) % 1, C.cyan, 6, 0.85);
+
+    trip(toCache, t, 30.3, 31.9, C.cyan);
+    show(stale, fade(t, 32.6, 34.6, 0.3));
+
+    trip(toDb, t, 35.8, 37.0, C.orange);
+    trip(toCache, t, 37.0, 37.6, C.cyan, false);
+
+    show(demo.g, fade(t, 38.4, 43.6, 0.5));
+    const d = ease(seg(t, 40.0, 42.6));
+    const ms = 800 * (1 - d) + 0.01 * d;
+    demo.big.textContent = ms >= 1 ? `${Math.round(ms)} ms` : `${ms.toFixed(2)} ms`;
+    demo.big.setAttribute("fill", d < 0.5 ? C.orange : C.cyan);
+    demo.small.textContent = d < 1 ? "first request: from the database" : "next requests: from the cache";
+});
+</script>
+</body>
+</html>
