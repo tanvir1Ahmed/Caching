@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Lesson 1.1 video</title>
+<style>
+    html, body { margin: 0; padding: 0; background: #0b1726; overflow: hidden; }
+    svg { display: block; }
+    .mono { font-family: "DejaVu Sans Mono", monospace; }
+    .sans { font-family: "Inter", sans-serif; }
+</style>
+</head>
+<body>
+<svg id="stage" xmlns="http://www.w3.org/2000/svg"></svg>
+<script>
+const params = new URLSearchParams(location.search);
+const vertical = params.get("shape") !== "horizontal";
+const W = vertical ? 1080 : 1920;
+const H = vertical ? 1920 : 1080;
+const C = { bg: "#0b1726", grid: "#13263b", cyan: "#3fd0d4", cyanSoft: "#1d5f68", orange: "#f5a142", orangeSoft: "#6b4520", text: "#e9eef5", muted: "#7f93aa", note: "#f7d65a", red: "#ff6b6b" };
+const ns = "http://www.w3.org/2000/svg";
+const stage = document.getElementById("stage");
+stage.setAttribute("width", W);
+stage.setAttribute("height", H);
+stage.setAttribute("viewBox", `0 0 ${W} ${H}`);
+
+function el(name, attrs = {}, parent = stage) {
+    const e = document.createElementNS(ns, name);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    parent.appendChild(e);
+    return e;
+}
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const ease = p => p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+const fade = (t, a, b, d = 0.5) => clamp(Math.min((t - a) / d, (b - t) / d));
+
+const defs = el("defs");
+const glow = el("filter", { id: "glow", x: "-50%", y: "-50%", width: "200%", height: "200%" }, defs);
+el("feGaussianBlur", { stdDeviation: "6", result: "b" }, glow);
+const merge = el("feMerge", {}, glow);
+el("feMergeNode", { in: "b" }, merge);
+el("feMergeNode", { in: "SourceGraphic" }, merge);
+const vignette = el("radialGradient", { id: "vig", cx: "50%", cy: "45%", r: "75%" }, defs);
+el("stop", { offset: "0%", "stop-color": "#10223a" }, vignette);
+el("stop", { offset: "100%", "stop-color": "#08111d" }, vignette);
+
+el("rect", { width: W, height: H, fill: "url(#vig)" });
+const grid = el("g", { stroke: C.grid, "stroke-width": 1, opacity: 0.6 });
+for (let x = 0; x <= W; x += 60) el("line", { x1: x, y1: 0, x2: x, y2: H }, grid);
+for (let y = 0; y <= H; y += 60) el("line", { x1: 0, y1: y, x2: W, y2: y }, grid);
+
+const L = vertical
+    ? { pad: 70, headY: 110, titleY: 270, titleSize: 76, diagram: { x: 40, y: 500, s: 1.0 }, capY: 1640, capSize: 46, capW: 940, statY: 960 }
+    : { pad: 90, headY: 90, titleY: 210, titleSize: 72, diagram: { x: 960, y: 150, s: 0.8 }, capY: 975, capSize: 40, capW: 1740, statY: 540 };
+
+const head = el("g", { class: "mono" });
+el("text", { x: L.pad, y: L.headY, fill: C.cyan, "font-size": 30, "letter-spacing": 3 }, head).textContent = "CACHING ACADEMY";
+el("text", { x: L.pad + (vertical ? 350 : 360), y: L.headY, fill: C.text, "font-size": 30 }, head).textContent = "1.1";
+const tags = vertical ? [["CACHE", 640], ["HIT RATIO", 800]] : [["CACHE", 1500], ["HIT RATIO", 1660]];
+tags.forEach(([label, x], i) => {
+    const w = label.length * 19 + 36;
+    el("rect", { x, y: L.headY - 32, width: w, height: 46, rx: 23, fill: i === 0 ? "#0f3a40" : "none", stroke: i === 0 ? C.cyan : "#2c4258", "stroke-width": 2 }, head);
+    el("text", { x: x + w / 2, y: L.headY - 1, fill: i === 0 ? C.cyan : C.muted, "font-size": 24, "text-anchor": "middle", "letter-spacing": 1 }, head).textContent = label;
+});
+const title = el("text", { x: L.pad, y: L.titleY, fill: C.text, "font-size": L.titleSize, "font-weight": 700, class: "sans" });
+const subtitle = el("text", { x: L.pad, y: L.titleY + 70, fill: C.muted, "font-size": vertical ? 36 : 34, class: "sans" });
+
+const D = el("g", { transform: `translate(${L.diagram.x},${L.diagram.y}) scale(${L.diagram.s})` });
+const links = el("g", {}, D);
+const longLink = el("path", { d: "M 250 640 C 420 760, 620 760, 790 640", fill: "none", stroke: C.orange, "stroke-width": 3, "stroke-dasharray": "10 12", opacity: 0 }, links);
+const shortLink = el("path", { d: "M 250 560 L 330 400", fill: "none", stroke: C.cyan, "stroke-width": 3, "stroke-dasharray": "10 12", opacity: 0 }, links);
+
+function cube(parent, cx, cy, s) {
+    const g = el("g", {}, parent);
+    const k = 0.87 * s;
+    el("polygon", { points: `${cx},${cy - s} ${cx + k},${cy - s / 2} ${cx},${cy} ${cx - k},${cy - s / 2}`, fill: "#16304a", stroke: C.cyan, "stroke-width": 2.5 }, g);
+    el("polygon", { points: `${cx - k},${cy - s / 2} ${cx},${cy} ${cx},${cy + s} ${cx - k},${cy + s / 2}`, fill: "#0f2236", stroke: C.cyan, "stroke-width": 2.5 }, g);
+    el("polygon", { points: `${cx + k},${cy - s / 2} ${cx},${cy} ${cx},${cy + s} ${cx + k},${cy + s / 2}`, fill: "#12283f", stroke: C.cyan, "stroke-width": 2.5 }, g);
+    for (let i = 0; i < 3; i++) el("circle", { cx: cx - k + 22, cy: cy - s / 2 + 34 + i * 26, r: 4, fill: "#5aa0ff" }, g);
+    for (let i = 0; i < 3; i++) el("line", { x1: cx - k + 40, y1: cy - s / 2 + 40 + i * 26, x2: cx - 20, y2: cy + 6 + i * 26, stroke: "#2c5a7a", "stroke-width": 2 }, g);
+    return g;
+}
+function cylinder(parent, cx, ty, rx, ry, h, color, n) {
+    const g = el("g", {}, parent);
+    el("path", { d: `M ${cx - rx} ${ty} L ${cx - rx} ${ty + h} A ${rx} ${ry} 0 0 0 ${cx + rx} ${ty + h} L ${cx + rx} ${ty}`, fill: color === C.orange ? "#2a2416" : "#10303a", stroke: color, "stroke-width": 3 }, g);
+    for (let i = 1; i < n; i++) el("path", { d: `M ${cx - rx} ${ty + (h * i) / n} A ${rx} ${ry} 0 0 0 ${cx + rx} ${ty + (h * i) / n}`, fill: "none", stroke: color, "stroke-width": 1.5, opacity: 0.55 }, g);
+    for (let i = 1; i < n; i++) el("circle", { cx, cy: ty + (h * i) / n + ry * 0.55, r: 4.5, fill: color }, g);
+    el("ellipse", { cx, cy: ty, rx, ry, fill: "#14304a", stroke: color, "stroke-width": 3 }, g);
+    return g;
+}
+function label(parent, x, y, text, color, size = 34) {
+    const t = el("text", { x, y, fill: color, "font-size": size, "text-anchor": "middle", class: "mono" }, parent);
+    t.textContent = text;
+    return t;
+}
+
+const you = el("g", { opacity: 0 }, D);
+cube(you, 200, 600, 110);
+const youLabel = label(you, 200, 790, "you", C.cyan);
+
+const db = el("g", { opacity: 0 }, D);
+const dbShape = cylinder(db, 800, 420, 150, 50, 300, C.orange, 6);
+const dbLabel = label(db, 800, 850, "library", C.orange);
+const dbSub = label(db, 800, 895, "across town", C.muted, 26);
+
+const note = el("g", { opacity: 0 }, D);
+el("rect", { x: 285, y: 275, width: 110, height: 110, rx: 8, fill: C.note, transform: "rotate(-6 340 330)" }, note);
+el("text", { x: 340, y: 340, fill: "#4a3b05", "font-size": 30, "font-weight": 700, "text-anchor": "middle", class: "sans", transform: "rotate(-6 340 330)" }, note).textContent = "fact";
+const noteLabel = label(note, 340, 240, "sticky note", C.note, 28);
+
+const cacheG = el("g", { opacity: 0 }, D);
+cylinder(cacheG, 340, 280, 85, 28, 120, C.cyan, 3);
+const cacheLabel = label(cacheG, 340, 225, "cache", C.cyan, 34);
+const cacheSub = label(cacheG, 340, 455, "fast memory", C.muted, 24);
+
+const clockSlow = el("g", { opacity: 0, class: "mono" }, D);
+el("text", { x: 520, y: 820, fill: C.orange, "font-size": 44, "text-anchor": "middle", filter: "url(#glow)" }, clockSlow).textContent = "800 ms";
+el("text", { x: 520, y: 862, fill: C.muted, "font-size": 24, "text-anchor": "middle" }, clockSlow).textContent = "slow trip";
+const clockFast = el("g", { opacity: 0, class: "mono" }, D);
+el("text", { x: 120, y: 450, fill: C.cyan, "font-size": 40, "text-anchor": "middle", filter: "url(#glow)" }, clockFast).textContent = "0.01 ms";
+el("text", { x: 120, y: 488, fill: C.muted, "font-size": 24, "text-anchor": "middle" }, clockFast).textContent = "instant";
+
+const hitBadge = el("g", { opacity: 0 }, D);
+el("rect", { x: 420, y: 300, width: 110, height: 44, rx: 22, fill: C.cyan }, hitBadge);
+el("text", { x: 475, y: 331, fill: "#06232a", "font-size": 24, "font-weight": 800, "text-anchor": "middle", class: "sans" }, hitBadge).textContent = "HIT";
+
+const packets = el("g", {}, D);
+const packetPool = Array.from({ length: 24 }, () => el("circle", { r: 9, fill: C.cyan, filter: "url(#glow)", opacity: 0 }, packets));
+
+const stat = el("g", { opacity: 0 });
+const sx = W / 2;
+el("rect", { x: sx - (vertical ? 450 : 520), y: L.statY - 230, width: vertical ? 900 : 1040, height: 430, rx: 28, fill: "#0e1d2f", stroke: "#2c4258", "stroke-width": 2 }, stat);
+el("text", { x: sx, y: L.statY - 150, fill: C.muted, "font-size": 34, "text-anchor": "middle", class: "mono", "letter-spacing": 3 }, stat).textContent = "AMAZON";
+const statBig = el("text", { x: sx, y: L.statY - 20, fill: C.orange, "font-size": 120, "font-weight": 800, "text-anchor": "middle", class: "sans", filter: "url(#glow)" }, stat);
+const statSmall = el("text", { x: sx, y: L.statY + 60, fill: C.text, "font-size": 44, "text-anchor": "middle", class: "sans" }, stat);
+el("text", { x: sx, y: L.statY + 150, fill: C.muted, "font-size": 24, "text-anchor": "middle", class: "mono" }, stat).textContent = "source: Greg Linden, Amazon";
+
+const fb = el("g", { opacity: 0, class: "mono" }, D);
+el("text", { x: 560, y: 70, fill: C.text, "font-size": 34, "text-anchor": "middle" }, fb).textContent = "FACEBOOK · memcache";
+const fbCount = el("text", { x: 560, y: 115, fill: C.cyan, "font-size": 30, "text-anchor": "middle" }, fb);
+
+const gauge = el("g", { opacity: 0 });
+const gx = vertical ? W / 2 : 420;
+const gy = vertical ? 1180 : 640;
+const gr = vertical ? 150 : 170;
+el("circle", { cx: gx, cy: gy, r: gr, fill: "none", stroke: "#1b3047", "stroke-width": 26 }, gauge);
+const gaugeArc = el("circle", { cx: gx, cy: gy, r: gr, fill: "none", stroke: C.cyan, "stroke-width": 26, "stroke-linecap": "round", transform: `rotate(-90 ${gx} ${gy})`, "stroke-dasharray": `0 ${2 * Math.PI * gr}`, filter: "url(#glow)" }, gauge);
+const gaugeText = el("text", { x: gx, y: gy + 22, fill: C.text, "font-size": 72, "font-weight": 800, "text-anchor": "middle", class: "sans" }, gauge);
+el("text", { x: gx, y: gy + gr + 75, fill: C.muted, "font-size": 32, "text-anchor": "middle", class: "mono" }, gauge).textContent = "hit ratio";
+
+const end = el("g", { opacity: 0 });
+el("rect", { width: W, height: H, fill: "#08111d", opacity: 0.92 }, end);
+el("text", { x: W / 2, y: H / 2 - 60, fill: C.cyan, "font-size": 34, "text-anchor": "middle", class: "mono", "letter-spacing": 4 }, end).textContent = "CACHING ACADEMY";
+el("text", { x: W / 2, y: H / 2 + 40, fill: C.text, "font-size": vertical ? 80 : 90, "font-weight": 800, "text-anchor": "middle", class: "sans" }, end).textContent = "What is caching?";
+el("text", { x: W / 2, y: H / 2 + 110, fill: C.muted, "font-size": 36, "text-anchor": "middle", class: "sans" }, end).textContent = "Lesson 1.1 · try the live demo";
+
+const capBox = el("rect", { rx: 18, fill: "#000", opacity: 0 });
+const capText = el("text", { x: W / 2, y: L.capY, fill: C.text, "font-size": L.capSize, "text-anchor": "middle", class: "sans", "font-weight": 600 });
+
+const captions = [
+    [0.0, 5.0, "Welcome to the caching course. Let's start with a simple idea."],
+    [5.0, 10.1, "You need a fact from a library across town."],
+    [10.1, 13.8, "The first time, you travel all the way there. That is slow."],
+    [13.8, 16.9, "So you write the fact on a sticky note on your desk."],
+    [16.9, 21.2, "Next time, you just read the note. That note is a cache."],
+    [21.2, 28.0, "In software: the library is your database, the note is a copy in fast memory."],
+    [28.0, 34.4, "Amazon: every extra 0.1 s of loading cost about 1% of sales."],
+    [34.4, 40.8, "Facebook answers billions of requests per second from a cache."],
+    [40.8, 47.2, "Watch the animation, then see why the hit ratio decides everything."]
+];
+
+function wrap(text, maxChars) {
+    const words = text.split(" ");
+    const lines = [""];
+    for (const w of words) {
+        if ((lines[lines.length - 1] + " " + w).trim().length > maxChars) lines.push(w);
+        else lines[lines.length - 1] = (lines[lines.length - 1] + " " + w).trim();
+    }
+    return lines;
+}
+
+function pointOn(path, p) {
+    const len = path.getTotalLength();
+    return path.getPointAtLength(len * clamp(p));
+}
+
+function render(t) {
+    const titleText = "What is caching?";
+    title.textContent = titleText.slice(0, Math.floor(seg(t, 0.6, 2.4) * titleText.length));
+    subtitle.textContent = t > 2.6 ? "Keep a fast copy of slow answers." : "";
+    subtitle.setAttribute("opacity", seg(t, 2.6, 3.4));
+
+    const diagramOn = seg(t, 4.5, 5.5) * (1 - 0.8 * seg(t, 27.8, 28.4) + 0.8 * seg(t, 34.2, 34.8)) * (1 - 0.75 * seg(t, 40.6, 41.2));
+    D.setAttribute("opacity", diagramOn);
+    you.setAttribute("opacity", seg(t, 5.0, 5.8));
+    db.setAttribute("opacity", seg(t, 6.8, 7.6));
+    longLink.setAttribute("opacity", seg(t, 7.4, 8.2) * 0.9);
+    longLink.setAttribute("stroke-dashoffset", -t * 30);
+    shortLink.setAttribute("opacity", seg(t, 14.5, 15.2) * 0.9);
+    shortLink.setAttribute("stroke-dashoffset", -t * 30);
+
+    const toCache = seg(t, 23.6, 24.6);
+    note.setAttribute("opacity", seg(t, 14.0, 14.8) * (1 - toCache));
+    note.setAttribute("transform", `translate(0, ${(1 - ease(seg(t, 14.0, 14.8))) * -40})`);
+    cacheG.setAttribute("opacity", Math.max(toCache, 0));
+    noteLabel.textContent = t > 19.1 ? "= cache" : "sticky note";
+
+    youLabel.textContent = t > 24.0 ? "app" : "you";
+    dbLabel.textContent = t > 21.4 ? "database" : "library";
+    dbSub.textContent = t > 21.4 ? "slow disk" : "across town";
+    const relabel = Math.max(fade(t, 21.0, 22.2, 0.3), fade(t, 23.7, 24.6, 0.3));
+    dbLabel.setAttribute("filter", relabel > 0 ? "url(#glow)" : "");
+
+    clockSlow.setAttribute("opacity", fade(t, 10.6, 16.8, 0.4));
+    clockFast.setAttribute("opacity", fade(t, 17.6, 21.0, 0.4));
+    hitBadge.setAttribute("opacity", fade(t, 18.2, 21.0, 0.3));
+
+    packetPool.forEach(p => p.setAttribute("opacity", 0));
+    if (t > 10.3 && t < 13.6) {
+        const p = seg(t, 10.3, 13.6);
+        const q = p < 0.5 ? pointOn(longLink, ease(p * 2)) : pointOn(longLink, 1 - ease((p - 0.5) * 2));
+        packetPool[0].setAttribute("cx", q.x);
+        packetPool[0].setAttribute("cy", q.y);
+        packetPool[0].setAttribute("fill", C.orange);
+        packetPool[0].setAttribute("opacity", 1);
+    }
+    if (t > 17.2 && t < 18.2) {
+        const p = seg(t, 17.2, 18.2);
+        const q = p < 0.5 ? pointOn(shortLink, ease(p * 2)) : pointOn(shortLink, 1 - ease((p - 0.5) * 2));
+        packetPool[1].setAttribute("cx", q.x);
+        packetPool[1].setAttribute("cy", q.y);
+        packetPool[1].setAttribute("fill", C.cyan);
+        packetPool[1].setAttribute("opacity", 1);
+    }
+    if (t > 35.0 && t < 40.8) {
+        for (let i = 0; i < 20; i++) {
+            const phase = ((t - 35.0) * 1.6 + i / 20) % 1;
+            const q = pointOn(shortLink, phase < 0.5 ? phase * 2 : 2 - phase * 2);
+            const p = packetPool[i + 2];
+            p.setAttribute("cx", q.x + Math.sin(i * 7) * 14);
+            p.setAttribute("cy", q.y + Math.cos(i * 5) * 10);
+            p.setAttribute("fill", C.cyan);
+            p.setAttribute("r", 6);
+            p.setAttribute("opacity", 0.85 * fade(t, 35.0, 40.8, 0.4));
+        }
+        const q = pointOn(longLink, ((t - 35) / 4) % 1);
+        packetPool[22].setAttribute("cx", q.x);
+        packetPool[22].setAttribute("cy", q.y);
+        packetPool[22].setAttribute("fill", C.orange);
+        packetPool[22].setAttribute("opacity", 0.8 * fade(t, 35.0, 40.8, 0.4));
+    }
+
+    stat.setAttribute("opacity", fade(t, 28.2, 34.3, 0.5));
+    const grow = seg(t, 28.6, 31.6);
+    statBig.textContent = `+${Math.round(ease(grow) * 100)} ms`;
+    statSmall.textContent = t > 32.0 ? "≈ 1% fewer sales" : "of extra loading time";
+    statSmall.setAttribute("fill", t > 32.0 ? C.red : C.text);
+
+    fb.setAttribute("opacity", fade(t, 34.6, 40.8, 0.4));
+    fbCount.textContent = `${(seg(t, 34.8, 39.0) * 4).toFixed(1)} billion requests / s`;
+
+    gauge.setAttribute("opacity", fade(t, 41.0, 46.0, 0.5));
+    const g = ease(seg(t, 41.4, 44.6)) * 0.95;
+    gaugeArc.setAttribute("stroke-dasharray", `${2 * Math.PI * gr * g} ${2 * Math.PI * gr}`);
+    gaugeText.textContent = `${Math.round(g * 100)}%`;
+
+    end.setAttribute("opacity", seg(t, 45.6, 46.4));
+
+    const cap = captions.find(c => t >= c[0] && t < c[1]);
+    capText.innerHTML = "";
+    if (cap && t < 45.6) {
+        const lines = wrap(cap[2], vertical ? 30 : 64);
+        lines.forEach((line, i) => {
+            const ts = document.createElementNS(ns, "tspan");
+            ts.setAttribute("x", W / 2);
+            ts.setAttribute("dy", i === 0 ? 0 : L.capSize * 1.3);
+            ts.textContent = line;
+            capText.appendChild(ts);
+        });
+        const h = lines.length * L.capSize * 1.3 + 36;
+        capBox.setAttribute("x", (W - L.capW) / 2);
+        capBox.setAttribute("y", L.capY - L.capSize - 14);
+        capBox.setAttribute("width", L.capW);
+        capBox.setAttribute("height", h);
+        const o = fade(t, cap[0], cap[1], 0.2);
+        capBox.setAttribute("opacity", 0.55 * o);
+        capText.setAttribute("opacity", o);
+    } else {
+        capBox.setAttribute("opacity", 0);
+    }
+}
+window.render = render;
+render(params.has("t") ? +params.get("t") : 0);
+</script>
+</body>
+</html>
