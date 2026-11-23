@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Lesson 2.2 video</title>
+<style>
+    html, body { margin: 0; padding: 0; background: #0b1726; overflow: hidden; }
+    svg { display: block; }
+    .mono { font-family: "DejaVu Sans Mono", monospace; }
+    .sans { font-family: "Inter", sans-serif; }
+</style>
+</head>
+<body>
+<svg id="stage" xmlns="http://www.w3.org/2000/svg"></svg>
+<script src="kit.js"></script>
+<script>
+header("2.2", "ETag and 304", "Ask the server: has it changed?", ["ETAG", "304"]);
+
+const chip = txt(D, 500, 70, "", { fill: C.cyan, "font-size": 28, "letter-spacing": 2 });
+const wire = link(D, "M 280 560 C 430 680 600 680 730 560", C.orange);
+const toCache = link(D, "M 200 460 L 200 370", C.cyan);
+
+const browser = el("g", { opacity: 0 }, D);
+cube(browser, 200, 560, 100);
+txt(browser, 200, 730, "browser", { fill: C.cyan, "font-size": 32 });
+const bcache = el("g", { opacity: 0 }, D);
+cylinder(bcache, 200, 220, 90, 30, 110, C.cyan, 3);
+txt(bcache, 200, 165, "browser cache", { fill: C.cyan, "font-size": 28 });
+const copy = txt(bcache, 200, 395, "copy · ETag \"abc\"", { fill: C.text, "font-size": 22 });
+const old = badge(D, 340, 240, "OLD?", C.orange, "#2b1600");
+
+const server = el("g", { opacity: 0 }, D);
+cube(server, 800, 560, 100, C.orange);
+txt(server, 800, 730, "server", { fill: C.orange, "font-size": 32 });
+const serverNote = txt(server, 800, 770, "", { fill: C.muted, "font-size": 22 });
+
+const ask = pill(D, "If-None-Match: \"abc\"", C.cyan);
+const answer = pill(D, "304 Not Modified", C.green, "#062a14");
+const etag = pill(D, "ETag = version label", C.orange, "#2b1600");
+
+const bars = el("g", { opacity: 0 }, D);
+txt(bars, 110, 840, "200 OK", { fill: C.text, "font-size": 24, "text-anchor": "start" });
+txt(bars, 110, 900, "304", { fill: C.green, "font-size": 24, "text-anchor": "start" });
+el("rect", { x: 260, y: 818, width: 560, height: 30, rx: 8, fill: C.orange }, bars);
+const bar304 = el("rect", { x: 260, y: 878, width: 0, height: 30, rx: 8, fill: C.green }, bars);
+txt(bars, 840, 842, "48 KB", { fill: C.orange, "font-size": 24, "text-anchor": "start" });
+const size304 = txt(bars, 840, 902, "", { fill: C.green, "font-size": 24, "text-anchor": "start" });
+
+const gh = card("GITHUB API", C.green);
+gh.source.textContent = "source: GitHub REST API docs, conditional requests";
+const saved = txt(D, 500, 840, "", { fill: C.green, "font-size": 30, opacity: 0 });
+
+captions = [
+    [0, 4.4, "What happens when a cached copy is old, but probably still correct?"],
+    [4.4, 8.9, "The browser asks the server: \"I have version abc. Has it changed?\""],
+    [8.9, 13.1, "That version label is called an ETag."],
+    [13.1, 17.6, "If nothing changed, the server answers 304 Not Modified, with an empty body."],
+    [17.6, 23.5, "Instead of downloading everything again, you get a tiny \"it's still the same\"."],
+    [23.5, 27.9, "GitHub uses this: a 304 answer doesn't count against your rate limit."],
+    [27.9, 35.0, "Tools that check GitHub every minute save huge amounts of traffic."],
+    [35.0, 41.7, "In the demo, send the ETag back and watch the body drop to zero bytes."]
+];
+endCard("ETag and 304", "Lesson 2.2 · try the live demo", 41.4);
+
+play(t => {
+    const dim = 1 - 0.8 * fade(t, 23.6, 27.8, 0.5);
+    show(browser, seg(t, 1.0, 1.8) * dim);
+    show(bcache, seg(t, 1.6, 2.4) * dim);
+    show(server, seg(t, 2.2, 3.0) * dim);
+    show(wire, seg(t, 2.6, 3.2) * 0.9 * dim);
+    show(toCache, seg(t, 2.0, 2.6) * 0.9 * dim);
+    [wire, toCache].forEach(l => l.setAttribute("stroke-dashoffset", -t * 30));
+    show(old, fade(t, 2.6, 8.8, 0.3) * dim);
+    chip.textContent = t < 4.4 ? "" : t < 13.1 ? "CONDITIONAL REQUEST" : t < 23.5 ? "NOTHING CHANGED" : t < 35 ? "GITHUB · POLL EVERY MINUTE" : "TRY IT: SEND THE ETAG BACK";
+    show(chip, dim);
+
+    if (t > 4.8 && t < 8.6) {
+        const p = ease(seg(t, 4.8, 8.6));
+        packet(wire, p, C.cyan);
+        ride(ask, wire, p);
+    } else show(ask, 0);
+    if (t > 9.0 && t < 13.0) place(etag, 420, 300, fade(t, 9.0, 13.0, 0.3) * dim); else show(etag, 0);
+    copy.setAttribute("fill", t > 9 && t < 13 ? C.orange : C.text);
+    serverNote.textContent = t > 8.6 && t < 23.5 ? "version still \"abc\"" : "";
+
+    if (t > 13.3 && t < 16.6) {
+        const p = ease(seg(t, 13.3, 16.6));
+        packet(wire, 1 - p, C.green, 6);
+        ride(answer, wire, 1 - p);
+    } else if (t >= 16.6 && t < 23.4) place(answer, 470, 470, fade(t, 16.6, 23.4, 0.3)); else show(answer, 0);
+    copy.textContent = t > 16.6 && t < 23.5 ? "copy reused ✓" : "copy · ETag \"abc\"";
+
+    const showBars = Math.max(fade(t, 17.8, 23.4, 0.4), seg(t, 35.2, 35.8));
+    show(bars, showBars);
+    const shrink = t < 35 ? ease(seg(t, 18.4, 20.4)) : ease(seg(t, 36.0, 38.5));
+    bar304.setAttribute("width", Math.max(4, 560 * (1 - shrink)));
+    size304.textContent = shrink < 1 ? `${Math.round(48 * (1 - shrink))} KB` : "0 bytes";
+
+    show(gh.g, fade(t, 23.7, 27.8, 0.5));
+    gh.big.textContent = "304";
+    gh.small.textContent = "doesn't count against your rate limit";
+
+    if (t > 28.2 && t < 34.8) for (let i = 0; i < 6; i++) {
+        const p = ((t - 28.2) * 0.9 + i / 6) % 1;
+        packet(wire, p < 0.5 ? p * 2 : 2 - p * 2, p < 0.5 ? C.cyan : C.green, 6, 0.9);
+    }
+    show(saved, fade(t, 28.6, 34.8, 0.4));
+    saved.textContent = `${Math.round(seg(t, 28.6, 33.5) * 1440).toLocaleString("en-US")} checks / day · ~0 bytes each`;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Lesson 2.3 video</title>
+<style>
+    html, body { margin: 0; padding: 0; background: #0b1726; overflow: hidden; }
+    svg { display: block; }
+    .mono { font-family: "DejaVu Sans Mono", monospace; }
+    .sans { font-family: "Inter", sans-serif; }
+</style>
+</head>
+<body>
+<svg id="stage" xmlns="http://www.w3.org/2000/svg"></svg>
+<script src="kit.js"></script>
+<script>
+header("2.3", "Response caching", "Store the whole HTTP response on the server", ["MIDDLEWARE", "PUBLIC"]);
+
+const chip = txt(D, 500, 70, "", { fill: C.cyan, "font-size": 28, "letter-spacing": 2 });
+const userY = [300, 560, 820];
+const toCache = userY.map(y => link(D, `M 170 ${y} C 280 ${y}, 320 520, 410 470`, C.cyan));
+const toCtrl = link(D, "M 590 470 C 680 520, 700 560, 760 600", C.orange);
+const bypass = link(D, "M 170 820 C 420 930, 640 880, 760 700", C.red);
+
+const users = el("g", { opacity: 0 }, D);
+userY.forEach((y, i) => {
+    cube(users, 100, y, 55);
+    txt(users, 100, y + 95, ["visitor A", "visitor B", "visitor C"][i], { fill: C.cyan, "font-size": 22 });
+});
+const cache = el("g", { opacity: 0 }, D);
+cylinder(cache, 500, 380, 95, 32, 140, C.cyan, 3);
+txt(cache, 500, 320, "response cache", { fill: C.cyan, "font-size": 28 });
+const stored = txt(cache, 500, 610, "", { fill: C.text, "font-size": 22 });
+
+const ctrl = el("g", { opacity: 0 }, D);
+cube(ctrl, 840, 620, 95, C.orange);
+txt(ctrl, 840, 785, "controller", { fill: C.orange, "font-size": 30 });
+txt(ctrl, 840, 820, "your code", { fill: C.muted, "font-size": 22 });
+
+const runs = el("g", { opacity: 0 }, D);
+el("rect", { x: 700, y: 150, width: 260, height: 120, rx: 18, fill: "#0e1d2f", stroke: C.orange, "stroke-width": 2 }, runs);
+txt(runs, 830, 195, "code ran", { fill: C.muted, "font-size": 22 });
+const runCount = txt(runs, 830, 248, "0×", { fill: C.orange, "font-size": 44, "font-weight": 800 });
+const hitBadge = badge(D, 500, 690, "SERVED FROM CACHE", C.cyan);
+const noCache = pill(D, "Cache-Control: no-cache", C.red, "#2b0606");
+const bypassed = badge(D, 500, 690, "BYPASSED", C.red, "#2b0606");
+
+const demo = card("LIVE DEMO", C.cyan);
+demo.source.textContent = "then tick the no-cache box";
+
+captions = [
+    [0, 2.7, "Now let's cache whole responses on the server."],
+    [2.7, 13.3, "Response caching middleware stores a complete response and gives it to the next visitor without running your code."],
+    [13.3, 17.3, "It works best for public pages that everybody sees the same way."],
+    [17.3, 22.6, "Hacker News serves cached pages to logged-out visitors when it's busy."],
+    [22.6, 30.8, "The weakness: a client can send a no-cache header and skip it, forcing your code to run."],
+    [30.8, 38.9, "In the demo, send five requests: your controller runs only once. Then tick no-cache."]
+];
+endCard("Response caching", "Lesson 2.3 · try the live demo", 38.7);
+
+play(t => {
+    const dim = 1 - 0.8 * seg(t, 30.9, 31.5);
+    show(users, seg(t, 0.8, 1.6) * dim);
+    show(cache, seg(t, 1.4, 2.2) * dim);
+    show(ctrl, seg(t, 2.0, 2.8) * dim);
+    show(runs, seg(t, 3.0, 3.6) * dim);
+    toCache.forEach(l => show(l, seg(t, 2.4, 3.0) * 0.9 * dim));
+    show(toCtrl, seg(t, 2.6, 3.2) * 0.9 * dim);
+    show(bypass, fade(t, 23.0, 30.6, 0.4) * 0.9);
+    [...toCache, toCtrl, bypass].forEach(l => l.setAttribute("stroke-dashoffset", -t * 30));
+    chip.textContent = t < 2.7 ? "" : t < 8.4 ? "FIRST REQUEST · CODE RUNS" : t < 13.3 ? "NEXT VISITORS · CODE SKIPPED" : t < 17.3 ? "PUBLIC PAGES ONLY" : t < 22.6 ? "HACKER NEWS · LOGGED-OUT VISITORS" : "THE WEAKNESS";
+    show(chip, dim);
+
+    trip(toCache[0], t, 3.6, 4.6, C.cyan, false);
+    trip(toCtrl, t, 4.6, 7.0, C.orange);
+    trip(toCache[0], t, 7.0, 8.0, C.cyan, false);
+    stored.textContent = t > 7.0 ? "GET /products · stored" : "";
+    for (const [i, s] of [[1, 9.0], [2, 10.2], [0, 11.4], [1, 13.6], [2, 14.4], [0, 15.2]]) trip(toCache[i], t, s, s + 1.0, C.cyan);
+    show(hitBadge, fade(t, 9.4, 22.4, 0.3));
+    if (t > 17.5 && t < 22.4) for (let i = 0; i < 12; i++) {
+        const p = ((t - 17.5) * 1.2 + i / 12) % 1;
+        packet(toCache[i % 3], p < 0.5 ? p * 2 : 2 - p * 2, C.cyan, 6, 0.85);
+    }
+
+    let n = t > 5.8 ? 1 : 0;
+    const bypassTrips = [23.6, 25.4, 27.2, 29.0];
+    bypassTrips.forEach(s => {
+        trip(bypass, t, s, s + 1.6, C.red);
+        if (t > s + 0.8) n++;
+    });
+    runCount.textContent = `${n}×`;
+    if (t > 23.6 && t < 30.6) {
+        const s = bypassTrips.filter(b => b <= t).pop();
+        const p = seg(t, s, s + 0.8);
+        if (p < 1) ride(noCache, bypass, p, 1); else show(noCache, 0);
+    } else show(noCache, 0);
+    show(bypassed, fade(t, 24.4, 30.6, 0.3));
+
+    show(demo.g, fade(t, 31.0, 38.7, 0.5));
+    demo.big.textContent = t < 35.7 ? "5 → 1×" : "5 → 5×";
+    demo.big.setAttribute("fill", t < 35.7 ? C.cyan : C.red);
+    demo.small.textContent = t < 35.7 ? "five requests, code runs once" : "with no-cache: code runs every time";
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Lesson 2.5 video</title>
+<style>
+    html, body { margin: 0; padding: 0; background: #0b1726; overflow: hidden; }
+    svg { display: block; }
+    .mono { font-family: "DejaVu Sans Mono", monospace; }
+    .sans { font-family: "Inter", sans-serif; }
+</style>
+</head>
+<body>
+<svg id="stage" xmlns="http://www.w3.org/2000/svg"></svg>
+<script src="kit.js"></script>
+<script>
+header("2.5", "CDNs and static files", "Cache servers in cities all around the world", ["CDN", "VERSIONING"]);
+if (!vertical) D.setAttribute("transform", "translate(1010,140) scale(0.76)");
+
+const chip = txt(D, 500, 70, "", { fill: C.cyan, "font-size": 28, "letter-spacing": 2 });
+const edges = [
+    { name: "London", x: 170, y: 260 }, { name: "New York", x: 500, y: 170 }, { name: "Tokyo", x: 830, y: 260 },
+    { name: "São Paulo", x: 170, y: 760 }, { name: "Sydney", x: 830, y: 760 }
+];
+const origin = el("g", { opacity: 0 }, D);
+cube(origin, 500, 520, 95, C.orange);
+txt(origin, 500, 680, "your server", { fill: C.orange, "font-size": 28 });
+edges.forEach(e => {
+    e.link = link(D, `M 500 520 L ${e.x} ${e.y + 40}`, C.orange);
+    e.g = el("g", { opacity: 0 }, D);
+    cylinder(e.g, e.x, e.y, 60, 20, 80, C.cyan, 2);
+    e.label = txt(e.g, e.x, e.y - 35, e.name, { fill: C.cyan, "font-size": 24 });
+    e.x2 = txt(e.g, e.x, e.y + 70, "✕", { fill: C.red, "font-size": 90, "font-weight": 800, filter: "url(#glow)", opacity: 0 });
+});
+const tokyo = edges[2];
+const userLink = link(D, "M 950 140 L 860 230", C.cyan);
+const user = el("g", { opacity: 0 }, D);
+el("circle", { cx: 960, cy: 130, r: 14, fill: C.text }, user);
+txt(user, 960, 100, "user in Tokyo", { fill: C.text, "font-size": 20, "text-anchor": "end" });
+const near = badge(D, 830, 400, "NEARBY · FAST", C.cyan);
+const first = badge(D, 660, 420, "ONLY THE FIRST REQUEST", C.orange, "#2b1600");
+
+const netflix = el("g", { opacity: 0 }, D);
+el("rect", { x: 300, y: 820, width: 400, height: 150, rx: 20, fill: "#0e1d2f", stroke: "#e50914", "stroke-width": 2.5 }, netflix);
+txt(netflix, 500, 860, "NETFLIX · OPEN CONNECT", { fill: "#ff4b55", "font-size": 24, "letter-spacing": 2 });
+cylinder(netflix, 400, 890, 40, 14, 50, C.cyan, 2);
+txt(netflix, 400, 965, "box in your ISP", { fill: C.muted, "font-size": 18 });
+cube(netflix, 610, 920, 34);
+txt(netflix, 610, 965, "home", { fill: C.muted, "font-size": 18 });
+const stream = link(netflix, "M 445 915 L 570 915", C.cyan);
+
+const fastly = txt(D, 500, 920, "", { fill: C.red, "font-size": 32, "font-weight": 700, filter: "url(#glow)", opacity: 0 });
+
+const files = card("YOUR OWN FILES", C.cyan);
+files.source.textContent = "Cache-Control: max-age=31536000, immutable";
+
+captions = [
+    [0, 5.2, "A CDN is a network of cache servers in cities all around the world."],
+    [5.2, 11.4, "Someone in Tokyo connects to a nearby server that keeps copies of your files."],
+    [11.4, 14.7, "Only the first request travels to your own server."],
+    [14.7, 24.0, "Netflix puts its own cache boxes inside internet providers, close to your home."],
+    [24.0, 33.6, "CDNs can fail too: in June 2021 a Fastly bug took down Amazon, Reddit and others for about an hour."],
+    [33.6, 42.6, "Put a version in the file name and cache it forever. A new version means a new name."]
+];
+endCard("CDNs and static files", "Lesson 2.5 · try the live demo", 42.4);
+
+play(t => {
+    const dim = 1 - 0.8 * seg(t, 33.8, 34.4);
+    show(origin, seg(t, 0.8, 1.6) * dim);
+    edges.forEach((e, i) => {
+        show(e.g, seg(t, 1.6 + i * 0.4, 2.2 + i * 0.4) * dim);
+        show(e.link, seg(t, 1.8 + i * 0.4, 2.4 + i * 0.4) * 0.7 * dim);
+        e.link.setAttribute("stroke-dashoffset", -t * 30);
+        const down = t > 26.6 + i * 0.5 && t < 33.8;
+        show(e.x2, down ? 1 : 0);
+        e.label.setAttribute("fill", down ? C.red : C.cyan);
+    });
+    show(user, seg(t, 5.4, 6.0) * dim);
+    show(userLink, seg(t, 5.6, 6.2) * 0.9 * dim);
+    userLink.setAttribute("stroke-dashoffset", -t * 30);
+    chip.textContent = t < 5.2 ? "" : t < 14.7 ? "EDGE SERVERS" : t < 24 ? "NETFLIX · BOXES INSIDE ISPs" : t < 33.6 ? "FASTLY · JUNE 8, 2021" : "";
+    show(chip, dim);
+
+    for (const s of [6.4, 8.0, 9.6]) trip(userLink, t, s, s + 1.2, C.cyan);
+    show(near, fade(t, 6.8, 11.2, 0.3));
+    if (t > 11.6 && t < 13.6) {
+        const p = seg(t, 11.6, 13.6);
+        packet(tokyo.link, p < 0.5 ? 1 - ease(p * 2) : ease((p - 0.5) * 2), C.orange);
+    }
+    show(first, fade(t, 11.8, 14.6, 0.3));
+    tokyo.label.textContent = t > 13.6 && t < 26.6 ? "Tokyo · has copy" : "Tokyo";
+
+    show(netflix, fade(t, 15.0, 24.0, 0.4));
+    stream.setAttribute("opacity", 0.9);
+    stream.setAttribute("stroke-dashoffset", -t * 60);
+    if (t > 16 && t < 24) for (let i = 0; i < 4; i++) packet(stream, ((t - 16) * 1.5 + i / 4) % 1, C.cyan, 5, 0.9);
+
+    show(fastly, fade(t, 27.6, 33.6, 0.4));
+    fastly.textContent = t < 30.6 ? "Amazon, Reddit, news sites: down" : "fixed in about an hour";
+    fastly.setAttribute("fill", t < 30.6 ? C.red : C.green);
+
+    show(files.g, fade(t, 34.0, 42.4, 0.5));
+    files.big.textContent = t < 38.1 ? "app.v1.js" : "app.v2.js";
+    files.small.textContent = t < 38.1 ? "cache it forever" : "new version = new name = fresh file";
+});
+</script>
+</body>
+</html>

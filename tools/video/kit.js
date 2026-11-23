@@ -90,6 +90,22 @@ function badge(parent, x, y, text, color, dark = "#06232a") {
     el("text", { x, y: y + 1, fill: dark, "font-size": 24, "font-weight": 800, "text-anchor": "middle", class: "sans" }, g).textContent = text;
     return g;
 }
+function pill(parent, text, color, dark = "#06232a", size = 22) {
+    const g = el("g", { opacity: 0 }, parent);
+    const w = text.length * size * 0.62 + 30;
+    el("rect", { x: -w / 2, y: -size - 8, width: w, height: size + 20, rx: (size + 20) / 2, fill: color }, g);
+    const label = el("text", { x: 0, y: 0, fill: dark, "font-size": size, "font-weight": 700, "text-anchor": "middle", class: "mono" }, g);
+    label.textContent = text;
+    return g;
+}
+function place(g, x, y, o = 1) {
+    g.setAttribute("transform", `translate(${x},${y})`);
+    g.setAttribute("opacity", o);
+}
+function ride(g, path, p, o = 1, dy = -26) {
+    const q = pointOn(path, p);
+    place(g, q.x, q.y + dy, o);
+}
 function link(parent, d, color) {
     return el("path", { d, fill: "none", stroke: color, "stroke-width": 3, "stroke-dasharray": "10 12", opacity: 0 }, parent);
 }

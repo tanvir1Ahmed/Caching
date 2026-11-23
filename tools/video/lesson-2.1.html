@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Lesson 2.1 video</title>
+<style>
+    html, body { margin: 0; padding: 0; background: #0b1726; overflow: hidden; }
+    svg { display: block; }
+    .mono { font-family: "DejaVu Sans Mono", monospace; }
+    .sans { font-family: "Inter", sans-serif; }
+</style>
+</head>
+<body>
+<svg id="stage" xmlns="http://www.w3.org/2000/svg"></svg>
+<script src="kit.js"></script>
+<script>
+header("2.1", "Cache-Control", "The fastest request is the one you never send", ["HTTP", "BROWSER"]);
+
+const chip = txt(D, 500, 70, "", { fill: C.cyan, "font-size": 28, "letter-spacing": 2 });
+const toServer = link(D, "M 280 600 C 430 720 600 720 730 600", C.orange);
+const toCache = link(D, "M 200 500 L 200 400", C.cyan);
+
+const browser = el("g", { opacity: 0 }, D);
+cube(browser, 200, 600, 100);
+txt(browser, 200, 770, "browser", { fill: C.cyan, "font-size": 32 });
+const bcache = el("g", { opacity: 0 }, D);
+cylinder(bcache, 200, 250, 90, 30, 110, C.cyan, 3);
+txt(bcache, 200, 195, "browser cache", { fill: C.cyan, "font-size": 28 });
+const stored = txt(bcache, 200, 420, "", { fill: C.text, "font-size": 22 });
+
+const server = el("g", { opacity: 0 }, D);
+cube(server, 800, 600, 100, C.orange);
+txt(server, 800, 770, "server", { fill: C.orange, "font-size": 32 });
+const served = txt(server, 800, 810, "", { fill: C.muted, "font-size": 24 });
+
+const header1 = pill(D, "Cache-Control: max-age=60", C.cyan);
+const header2 = pill(D, "max-age=31536000, immutable", C.green, "#062a14");
+const asks = pill(D, "changed?", C.orange, "#2b1600", 20);
+const notAsked = badge(D, 500, 470, "SERVER NOT ASKED", C.cyan);
+const wasted = txt(D, 800, 470, "", { fill: C.orange, "font-size": 26, opacity: 0 });
+
+const steam = card("STEAM · CHRISTMAS 2015", C.red);
+steam.source.textContent = "source: Valve statement, December 2015";
+
+const modes = el("g", { opacity: 0 }, D);
+[["no-store", "always asks server", C.red], ["no-cache", "asks: changed?", C.orange], ["max-age", "no request at all", C.green]].forEach(([name, what, color], i) => {
+    const x = 180 + i * 320;
+    el("rect", { x: x - 145, y: 180, width: 290, height: 220, rx: 20, fill: "#0e1d2f", stroke: color, "stroke-width": 2.5 }, modes);
+    txt(modes, x, 250, name, { fill: color, "font-size": 34, "font-weight": 700 });
+    txt(modes, x, 310, what, { fill: C.text, "font-size": 22 });
+    txt(modes, x, 360, ["server: 3×", "server: 3× (304)", "server: 0×"][i], { fill: C.muted, "font-size": 22 });
+});
+
+captions = [
+    [0, 3.1, "The fastest request is the one you never send."],
+    [3.1, 5.3, "Your browser has its own cache."],
+    [5.3, 12.5, "The server can add a Cache-Control header: how long the browser may reuse the answer."],
+    [12.5, 16.0, "During that time, the browser doesn't even ask the server."],
+    [16.0, 24.6, "Facebook saw browsers asking millions of times about files that never change, so it proposed immutable."],
+    [24.6, 33.2, "But be careful: at Christmas 2015, a caching mistake at Steam showed users other people's account pages."],
+    [33.2, 36.0, "Personal pages must always be marked private."],
+    [36.0, 43.0, "In the demo, compare no-store, no-cache and max-age."]
+];
+endCard("Cache-Control", "Lesson 2.1 · try the live demo", 42.8);
+
+play(t => {
+    const dim = 1 - 0.8 * Math.max(fade(t, 24.8, 36.0, 0.5), seg(t, 36.0, 36.6));
+    [browser, server].forEach((g, i) => show(g, seg(t, 1.2 + i * 0.8, 2.0 + i * 0.8) * dim));
+    show(bcache, seg(t, 3.3, 4.1) * dim);
+    show(toServer, seg(t, 2.6, 3.2) * 0.9 * dim);
+    show(toCache, seg(t, 3.8, 4.4) * 0.9 * dim);
+    [toServer, toCache].forEach(l => l.setAttribute("stroke-dashoffset", -t * 30));
+    chip.textContent = t < 5.3 ? "" : t < 12.5 ? "FIRST VISIT" : t < 16 ? "NEXT VISITS" : t < 24.6 ? "FACEBOOK · IMMUTABLE" : "";
+    show(chip, dim);
+
+    trip(toServer, t, 5.8, 7.4, C.orange, false);
+    if (t > 7.6 && t < 9.6) {
+        const p = ease(seg(t, 7.6, 9.6));
+        packet(toServer, 1 - p, C.cyan);
+        ride(header1, toServer, 1 - p);
+    } else if (t >= 9.6 && t < 12.4) {
+        place(header1, 200, 135, fade(t, 9.6, 12.4, 0.3));
+    } else show(header1, 0);
+    trip(toCache, t, 9.6, 10.4, C.cyan, false);
+    stored.textContent = t > 10.4 ? (t > 20.6 ? "app.js · immutable" : `page · ${Math.max(0, 60 - Math.floor((t - 10.4) * 4))} s left`) : "";
+
+    for (const s of [12.8, 13.9, 15.0]) trip(toCache, t, s, s + 0.9, C.cyan);
+    show(notAsked, fade(t, 13.0, 16.0, 0.3));
+    served.textContent = t > 7.4 ? (t < 16 ? "requests: 1" : `requests: ${1 + Math.floor(seg(t, 16.4, 20.4) * 12)}`) : "";
+
+    if (t > 16.4 && t < 20.4) {
+        const p = ((t - 16.4) * 1.2) % 1;
+        packet(toServer, p < 0.5 ? p * 2 : 2 - p * 2, C.orange);
+        ride(asks, toServer, p < 0.5 ? p * 2 : 2 - p * 2, 1);
+    } else show(asks, 0);
+    show(wasted, fade(t, 16.6, 24.4, 0.3));
+    wasted.textContent = t < 20.5 ? "wasted: “still the same?”" : "no more questions";
+    wasted.setAttribute("fill", t < 20.5 ? C.orange : C.green);
+    if (t > 20.6 && t < 24.4) place(header2, 470, 400, fade(t, 20.6, 24.4, 0.3)); else show(header2, 0);
+
+    show(steam.g, fade(t, 25.0, 36.0, 0.5));
+    steam.big.textContent = t < 33.2 ? "wrong pages" : "private";
+    steam.big.setAttribute("fill", t < 33.2 ? C.red : C.green);
+    steam.small.textContent = t < 33.2 ? "users saw other people's accounts" : "Cache-Control: private  ·  personal pages";
+
+    show(modes, seg(t, 36.4, 37.0));
+});
+</script>
+</body>
+</html>

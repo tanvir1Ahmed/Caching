@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Lesson 2.4 video</title>
+<style>
+    html, body { margin: 0; padding: 0; background: #0b1726; overflow: hidden; }
+    svg { display: block; }
+    .mono { font-family: "DejaVu Sans Mono", monospace; }
+    .sans { font-family: "Inter", sans-serif; }
+</style>
+</head>
+<body>
+<svg id="stage" xmlns="http://www.w3.org/2000/svg"></svg>
+<script src="kit.js"></script>
+<script>
+header("2.4", "Output caching", "The modern server-side cache in .NET", ["TAGS", "LOCKING"]);
+
+const chip = txt(D, 500, 70, "", { fill: C.cyan, "font-size": 28, "letter-spacing": 2 });
+const userY = [300, 560, 820];
+const toCache = userY.map(y => link(D, `M 170 ${y} C 280 ${y}, 320 520, 410 470`, C.cyan));
+const toCtrl = link(D, "M 590 470 C 680 520, 700 560, 760 600", C.orange);
+
+const users = el("g", { opacity: 0 }, D);
+userY.forEach((y, i) => {
+    cube(users, 100, y, 55);
+    txt(users, 100, y + 95, ["client A", "client B", "client C"][i], { fill: C.cyan, "font-size": 22 });
+});
+const cache = el("g", { opacity: 0 }, D);
+cylinder(cache, 500, 380, 95, 32, 140, C.cyan, 3);
+txt(cache, 500, 320, "output cache", { fill: C.cyan, "font-size": 28 });
+const shield = el("path", { d: "M 395 360 A 120 120 0 0 0 395 560", fill: "none", stroke: C.green, "stroke-width": 6, filter: "url(#glow)", opacity: 0 }, D);
+
+const ctrl = el("g", { opacity: 0 }, D);
+cube(ctrl, 840, 620, 95, C.orange);
+txt(ctrl, 840, 785, "your code", { fill: C.orange, "font-size": 30 });
+const runs = el("g", { opacity: 0 }, D);
+el("rect", { x: 700, y: 150, width: 260, height: 120, rx: 18, fill: "#0e1d2f", stroke: C.orange, "stroke-width": 2 }, runs);
+txt(runs, 830, 195, "code ran", { fill: C.muted, "font-size": 22 });
+const runCount = txt(runs, 830, 248, "", { fill: C.orange, "font-size": 44, "font-weight": 800 });
+
+const noCache = pill(D, "no-cache", C.red, "#2b0606");
+const ignored = badge(D, 500, 690, "IGNORED · SERVER DECIDES", C.green, "#062a14");
+
+const tagList = el("g", { opacity: 0 }, D);
+const tagRows = ["/products", "/products/1", "/products/2", "/products/3"].map((path, i) => {
+    const y = 690 + i * 44;
+    const r = txt(tagList, 500, y, `${path}  #products`, { fill: C.text, "font-size": 24 });
+    return r;
+});
+const evict = pill(D, "EvictByTag(\"products\")", C.orange, "#2b1600");
+const waiting = txt(D, 470, 730, "", { fill: C.cyan, "font-size": 26, opacity: 0 });
+const wiki = pill(D, "edit → purge /wiki/Cache", C.orange, "#2b1600");
+
+const demo = card("10 REQUESTS AT ONCE", C.cyan);
+demo.source.textContent = "count how many times your code really runs";
+
+captions = [
+    [0, 4.4, "Output caching is the modern server-side response cache in .NET."],
+    [4.4, 10.1, "The big difference: you are in control, not the client. A client cannot bypass it."],
+    [10.1, 12.3, "It also has two superpowers."],
+    [12.3, 18.1, "Tags: remove a whole group of cached pages with one call when data changes."],
+    [18.1, 26.9, "Protection against rushes: a hundred requests arrive, only one runs the code, the others wait."],
+    [26.9, 35.9, "Wikipedia: most views come from cached HTML, and an edit purges that page's copies."],
+    [35.9, 42.3, "In the demo, send ten requests at the same moment and count the runs."]
+];
+endCard("Output caching", "Lesson 2.4 · try the live demo", 42.0);
+
+play(t => {
+    const dim = 1 - 0.8 * seg(t, 36.0, 36.6);
+    show(users, seg(t, 0.8, 1.6) * dim);
+    show(cache, seg(t, 1.4, 2.2) * dim);
+    show(ctrl, seg(t, 2.0, 2.8) * dim);
+    show(runs, seg(t, 3.0, 3.6) * dim);
+    toCache.forEach(l => show(l, seg(t, 2.4, 3.0) * 0.9 * dim));
+    show(toCtrl, seg(t, 2.6, 3.2) * 0.9 * dim);
+    [...toCache, toCtrl].forEach(l => l.setAttribute("stroke-dashoffset", -t * 30));
+    chip.textContent = t < 4.4 ? "" : t < 10.1 ? "THE SERVER IS IN CONTROL" : t < 12.3 ? "TWO SUPERPOWERS" : t < 18.1 ? "1 · TAGS" : t < 26.9 ? "2 · RUSH PROTECTION" : "WIKIPEDIA · CACHED HTML";
+    show(chip, dim);
+
+    show(shield, fade(t, 5.6, 10.0, 0.3));
+    if (t > 5.0 && t < 6.6) {
+        const p = seg(t, 5.0, 6.6);
+        packet(toCache[0], p, C.red);
+        ride(noCache, toCache[0], p);
+    } else show(noCache, 0);
+    trip(toCache[0], t, 6.6, 7.6, C.cyan, false);
+    show(ignored, fade(t, 6.4, 10.0, 0.3));
+
+    show(tagList, fade(t, 12.4, 18.0, 0.4));
+    const purged = t > 15.6;
+    tagRows.forEach((r, i) => {
+        r.setAttribute("fill", purged ? C.red : C.text);
+        r.setAttribute("text-decoration", purged ? "line-through" : "none");
+        r.setAttribute("opacity", purged ? 1 - seg(t, 16.4 + i * 0.15, 17.2 + i * 0.15) : 1);
+    });
+    if (t > 14.6 && t < 18.0) place(evict, 500, 640, fade(t, 14.6, 18.0, 0.3)); else show(evict, 0);
+
+    let runsNow = 1;
+    if (t > 19.0 && t < 26.6) {
+        for (let i = 0; i < 24; i++) {
+            const l = toCache[i % 3];
+            const arrive = 19.0 + (i % 8) * 0.12;
+            let p;
+            if (t < 23.6) p = Math.min(0.96, seg(t, arrive, arrive + 1.0)) - (t > arrive + 1 ? 0.04 * Math.sin((t + i) * 6) : 0);
+            else p = 1 - ease(seg(t, 23.6, 24.8));
+            packet(l, clamp(p), t < 23.6 ? C.cyan : C.green, 6, 0.9);
+        }
+    }
+    trip(toCtrl, t, 20.6, 23.4, C.orange);
+    if (t > 22) runsNow = 2;
+    show(waiting, fade(t, 20.8, 26.6, 0.3));
+    waiting.textContent = t < 23.6 ? "100 requests · 99 wait for the one" : "one result → all 100 answered";
+    runCount.textContent = t < 3.6 ? "" : t < 22 ? "1×" : t < 31.6 ? "2×" : "3×";
+
+    if (t > 27.2 && t < 35.6) for (let i = 0; i < 9; i++) {
+        const p = ((t - 27.2) * 1.1 + i / 9) % 1;
+        packet(toCache[i % 3], p < 0.5 ? p * 2 : 2 - p * 2, C.cyan, 6, 0.85);
+    }
+    trip(toCtrl, t, 30.4, 32.4, C.orange);
+    if (t > 30.4 && t < 35.6) place(wiki, 500, 690, fade(t, 30.4, 35.6, 0.3)); else show(wiki, 0);
+
+    show(demo.g, fade(t, 36.2, 42.0, 0.5));
+    const c = Math.round(ease(seg(t, 37.6, 39.4)) * 10);
+    demo.big.textContent = t < 39.6 ? `${c} request${c === 1 ? "" : "s"}` : "code ran 1×";
+    demo.small.textContent = t < 39.6 ? "arriving at the same moment" : "the other 9 waited and shared it";
+});
+</script>
+</body>
+</html>
